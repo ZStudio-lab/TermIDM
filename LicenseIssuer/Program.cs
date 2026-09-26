@@ -27,7 +27,8 @@ builder.Services.AddRateLimiter(options =>
 });
 
 var app = builder.Build();
-app.UseHttpsRedirection();
+// Render terminates TLS and forwards requests to the container over HTTP.
+// Redirecting inside Kestrel would point clients at an unconfigured container TLS port.
 app.UseCors();
 app.UseRateLimiter();
 
