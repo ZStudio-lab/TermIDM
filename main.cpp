@@ -1399,17 +1399,13 @@ int runDownloader(const std::string& url, const std::wstring& outputPath, const 
             : L"Download incomplete. This server cannot be safely resumed; partial data was discarded.");
         return 1;
     }
-    bool flushed = true;
     if (terminalUi) {
         std::cout << "Downloaded. Finalizing file...\n" << std::flush;
         std::cout << "====#Done#===\n";
-    } else {
-        if (!diskWriter->flushData()) flushed = false;
     }
-    if (!flushed) {
-        std::cerr << "Could not flush completed file data to disk; preserving partial file and recovery ledger.\n";
-        return 1;
-    }
+    // The completed data was flushed above, while the IOCP file handle was
+    // still open. Do not call flushData() again here: close() invalidates that
+    // handle and made every desktop-mode download fail at finalization.
     bool finalized = false;
     DWORD finalizeError = ERROR_SUCCESS;
     constexpr unsigned int kFinalizeAttempts = 8;
