@@ -47,6 +47,10 @@ try {
     if ($parts.Length -ne 3 -or $version -notmatch '^\d+\.\d+\.\d+$') { throw 'VERSION must contain major.minor.patch.' }
     $nextVersion = '{0}.{1}.{2}' -f $parts[0], $parts[1], ([long]$parts[2] + 1)
     $tag = "v$nextVersion"
+    $notesFile = Join-Path $root "release-notes\$tag.md"
+    if (-not (Test-Path -LiteralPath $notesFile -PathType Leaf)) {
+        throw "Add curated release notes before publishing: $notesFile. No version or files were changed."
+    }
     & $git.Source rev-parse -q --verify "refs/tags/$tag" *> $null
     if ($LASTEXITCODE -eq 0) { throw "Tag $tag already exists; update VERSION before attempting another release." }
 
@@ -74,7 +78,7 @@ try {
     & $git.Source push origin $tag
     if ($LASTEXITCODE -ne 0) { throw 'Tag push failed. The release tag remains local; correct the remote and retry the tag push.' }
     if ($releaseMethod -eq 'gh') {
-        & $gh.Source release create $tag $archive $stableArchive $setupExe $stableSetupExe --title "TermIDM v$builtVersion" --generate-notes
+        & $gh.Source release create $tag $archive $stableArchive $setupExe $stableSetupExe --title "TermIDM v$builtVersion" --notes-file $notesFile
         if ($LASTEXITCODE -ne 0) { throw 'GitHub release creation failed. The commit, tag, and archives are available locally.' }
     } else {
         $headers = @{
@@ -87,7 +91,7 @@ try {
             tag_name = $tag
             name = "TermIDM v$builtVersion"
             target_commitish = $branch
-            generate_release_notes = $true
+            body = [IO.File]::ReadAllText($notesFile)
         } | ConvertTo-Json
         $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$owner/$repo/releases" -Method Post -Headers $headers -ContentType 'application/json' -Body $payload
         $uploadBase = $release.upload_url -replace '\{.*$', ''

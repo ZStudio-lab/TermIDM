@@ -1410,10 +1410,30 @@ int runDownloader(const std::string& url, const std::wstring& outputPath, const 
         std::cerr << "Could not flush completed file data to disk; preserving partial file and recovery ledger.\n";
         return 1;
     }
-    if (!MoveFileExW(partPath.c_str(), outputPath.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
-        std::cerr << "Could not move completed partial file into place (Windows error " << GetLastError()
+    bool finalized = false;
+    DWORD finalizeError = ERROR_SUCCESS;
+    constexpr unsigned int kFinalizeAttempts = 8;
+    for (unsigned int attempt = 0; attempt < kFinalizeAttempts; ++attempt) {
+        if (MoveFileExW(partPath.c_str(), outputPath.c_str(),
+                        MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
+            finalized = true;
+            break;
+        }
+        finalizeError = GetLastError();
+        const bool transientLock = finalizeError == ERROR_ACCESS_DENIED ||
+            finalizeError == ERROR_SHARING_VIOLATION || finalizeError == ERROR_LOCK_VIOLATION ||
+            finalizeError == ERROR_USER_MAPPED_FILE;
+        if (!transientLock || attempt + 1 == kFinalizeAttempts) break;
+        // Antivirus scanners and indexers can briefly open the completed .part
+        // file without delete sharing. Retry those transient locks before
+        // surfacing an error; the validated part and ledger remain resumable.
+        Sleep(200u * (attempt + 1));
+    }
+    if (!finalized) {
+        std::cerr << "Could not move completed partial file into place (Windows error " << finalizeError
                   << "); the complete .part file and ledger were retained.\n";
-        if (statusCallback) statusCallback(L"Download complete, but finalizing the file failed; retry to finalize it.");
+        if (statusCallback) statusCallback(L"All bytes are downloaded, but Windows could not finalize the file (error " +
+            std::to_wstring(finalizeError) + L"). The complete partial file is retained; close anything using the target and retry.");
         return 1;
     }
     DeleteFileW(ledgerPath.c_str());
@@ -1547,6 +1567,8 @@ int executeRequest(const DownloadRequest& request, const StatusCallback& status 
 }
 
 void writeEngineLine(const std::string& line) {
+    static std::mutex outputMutex;
+    std::lock_guard<std::mutex> lock(outputMutex);
     HANDLE output = GetStdHandle(STD_OUTPUT_HANDLE);
     if (!output || output == INVALID_HANDLE_VALUE) return;
     std::string record = line + "\n";

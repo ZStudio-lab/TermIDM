@@ -361,9 +361,14 @@ public sealed partial class MainWindow : Window
                 else if (item.Status != "Cancelled")
                 {
                     item.Status = "Error";
-                    item.Details = string.IsNullOrWhiteSpace(item.Details)
-                        ? string.IsNullOrWhiteSpace(stderr) ? $"Engine exited with code {process.ExitCode}." : stderr.Trim()
-                        : item.Details;
+                    // Preserve the native engine's concrete Win32/libcurl
+                    // diagnostic. A generic STATUS line may already be set,
+                    // but stderr identifies why the final operation failed.
+                    item.Details = !string.IsNullOrWhiteSpace(stderr)
+                        ? stderr.Trim()
+                        : string.IsNullOrWhiteSpace(item.Details)
+                            ? $"Engine exited with code {process.ExitCode}."
+                            : item.Details;
                 }
                 item.EngineProcess = null;
                 StatusText.Text = item.Details;
@@ -430,7 +435,11 @@ public sealed partial class MainWindow : Window
                 item.Percent = total > 0 ? Math.Clamp(completed * 100.0 / total, 0, 100) : 0;
                 item.ActiveConnections = fields.Skip(5).Count(part =>
                     int.TryParse(part.Split(',')[0], out var state) && state is 1 or 2);
-                if (item.Status != "Paused") item.Status = "Downloading";
+                // Progress is reported frequently. Only transition into the
+                // Downloading state once; assigning this on every telemetry
+                // tick used to rebuild the bound list continuously and could
+                // destabilize the WinUI visual tree during long downloads.
+                if (item.Status is not ("Downloading" or "Paused")) item.Status = "Downloading";
                 break;
             case "DONE":
                 item.Status = "Completed";
@@ -739,8 +748,26 @@ public sealed class DownloadItem : INotifyPropertyChanged
         ? TimeSpan.FromSeconds(Math.Clamp((TotalBytes - BytesDownloaded) / SpeedBytesPerSecond, 0, 365 * 86400)).ToString(@"h:mm:ss") : "—";
     public event PropertyChangedEventHandler? PropertyChanged;
     private void Changed([CallerMemberName] string? name = null) => PropertyChanged?.Invoke(this, new(name));
-    public string Status { get => status; set { status = value; Changed(); } }
-    public string Details { get => details; set { details = value; Changed(); } }
+    public string Status
+    {
+        get => status;
+        set
+        {
+            if (string.Equals(status, value, StringComparison.Ordinal)) return;
+            status = value;
+            Changed();
+        }
+    }
+    public string Details
+    {
+        get => details;
+        set
+        {
+            if (string.Equals(details, value, StringComparison.Ordinal)) return;
+            details = value;
+            Changed();
+        }
+    }
     public double Percent { get => percent; set { percent = value; Changed(); Changed(nameof(ProgressText)); } }
     public double SpeedBytesPerSecond { get => speedBytesPerSecond; set { speedBytesPerSecond = value; Changed(); Changed(nameof(SpeedText)); Changed(nameof(EtaText)); Changed(nameof(ProgressText)); } }
     public long BytesDownloaded { get => bytesDownloaded; set { bytesDownloaded = value; Changed(); Changed(nameof(ProgressText)); Changed(nameof(EtaText)); } }
