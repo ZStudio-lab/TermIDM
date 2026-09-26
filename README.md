@@ -44,7 +44,7 @@ The script verifies GitHub CLI authentication and `origin` before changing the v
 
 The app displays a SHA-256 device ID at first launch. It fingerprints the Windows `MachineGuid`, verifies an ECDSA P-256 signature embedded in the key, and binds the token to that ID. Accepted tokens are protected at rest with Windows DPAPI. The website requests a key from the separate issuer API; it never contains a signing private key. Phone is validated as a request field but is not placed in the activation token. This provides normal device binding, not a hardware-rooted anti-cloning guarantee: a manually cloned Windows image could duplicate its MachineGuid.
 
-The public verification key lives in `TermIDM.Desktop/license-public-key.pem`. The corresponding private signing key must remain in a secret manager on the API host. A development key was generated outside this repository at `%LOCALAPPDATA%\TermIDM\LicenseAuthority\license-authority-private.pem`; do not commit, publish, or copy this file into a website. Configure the issuer host's secret `TERMIDM_LICENSE_PRIVATE_KEY_PEM` with its PEM value and configure `TERMIDM_LICENSE_ALLOWED_ORIGIN` to the exact HTTPS GitHub Pages origin. Deploy `LicenseIssuer/` to an HTTPS ASP.NET Core host before adding that endpoint to the `license-api-endpoint` meta tag in `index.html`.
+The public verification key lives in `TermIDM.Desktop/license-public-key.pem`. The corresponding private signing key must remain in a secret manager on the API host. A development key was generated outside this repository at `%LOCALAPPDATA%\TermIDM\LicenseAuthority\license-authority-private.pem`; do not commit, publish, or copy this file into a website. The root `render.yaml` and `LicenseIssuer/Dockerfile` define a Render deployment. Create a Blueprint from this repository, enter the PEM contents as the `TERMIDM_LICENSE_PRIVATE_KEY_PEM` secret when prompted, and keep `TERMIDM_LICENSE_ALLOWED_ORIGIN` set to `https://zstudio-lab.github.io`. The `/health` endpoint reports ready only when a valid P-256 signing key is configured. After the service is live, put its HTTPS `/api/licenses` URL in the `license-api-endpoint` meta tag in `index.html` and redeploy the Pages site.
 
 For a new signing key, generate a P-256 keypair using a protected secret store, replace the public key file in the desktop app, rebuild/release the app, then put the private key only in the issuer's secret manager. Replacing the key invalidates activations signed by the old key unless the verifier is deliberately updated to trust both keys during a migration. Configure the website's `license-api-endpoint` meta value to the issuer's HTTPS `/api/licenses` URL after deployment.
 
@@ -52,7 +52,7 @@ This issuer provides device binding and signed token integrity; a public, unauth
 
 ## Publish the landing page
 
-Publish the repository root with GitHub Pages. The download CTA points to the stable GitHub release asset. The license form stays safely disabled until `license-api-endpoint` is set to the deployed issuer URL.
+Publish the repository root with GitHub Pages. The download CTA points to the stable GitHub release asset. The license form stays safely disabled until `license-api-endpoint` is set to the deployed issuer URL. The Render free service may spin down while idle, so its first request after inactivity can take longer; use an always-on plan for consistently immediate activation responses.
 
 ## License
 

@@ -6,6 +6,8 @@ using System.Threading.RateLimiting;
 var builder = WebApplication.CreateBuilder(args);
 var allowedOrigin = Environment.GetEnvironmentVariable("TERMIDM_LICENSE_ALLOWED_ORIGIN")
                     ?? "https://zstudio-lab.github.io";
+var privateKeyPem = builder.Configuration["TERMIDM_LICENSE_PRIVATE_KEY_PEM"];
+var signingKeyReady = IsValidSigningKey(privateKeyPem);
 builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
     policy.WithOrigins(allowedOrigin).WithMethods("POST").WithHeaders("Content-Type")));
 builder.Services.AddRateLimiter(options =>
@@ -36,8 +38,8 @@ app.MapPost("/api/licenses", (LicenseRequest request, IConfiguration configurati
         request.MachineId is null || !Regex.IsMatch(request.MachineId, "\\A[0-9a-fA-F]{64}\\z", RegexOptions.CultureInvariant))
         return Results.BadRequest(new { error = "Enter valid name, email, phone, country, and device ID values." });
 
-    var privateKeyPem = configuration["TERMIDM_LICENSE_PRIVATE_KEY_PEM"];
-    if (string.IsNullOrWhiteSpace(privateKeyPem))
+    var configuredPrivateKey = configuration["TERMIDM_LICENSE_PRIVATE_KEY_PEM"];
+    if (string.IsNullOrWhiteSpace(configuredPrivateKey))
         return Results.Problem("License issuance is not configured on this server.", statusCode: StatusCodes.Status503ServiceUnavailable);
 
     try
@@ -46,7 +48,7 @@ app.MapPost("/api/licenses", (LicenseRequest request, IConfiguration configurati
             Uri.EscapeDataString(request.Email.Trim()), Uri.EscapeDataString(request.Country.Trim()),
             request.MachineId.ToLowerInvariant());
         using var signer = ECDsa.Create();
-        signer.ImportFromPem(privateKeyPem);
+        signer.ImportFromPem(configuredPrivateKey);
         var signature = signer.SignData(Encoding.UTF8.GetBytes(payload), HashAlgorithmName.SHA256,
             DSASignatureFormat.IeeeP1363FixedFieldConcatenation);
         var encodedSignature = Convert.ToBase64String(signature).TrimEnd('=').Replace('+', '-').Replace('/', '_');
@@ -63,7 +65,22 @@ app.MapPost("/api/licenses", (LicenseRequest request, IConfiguration configurati
 .Produces(StatusCodes.Status400BadRequest)
 .Produces(StatusCodes.Status429TooManyRequests);
 
-app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
+app.MapGet("/health", () => signingKeyReady
+    ? Results.Ok(new { status = "ok" })
+    : Results.Problem("License issuer is not configured.", statusCode: StatusCodes.Status503ServiceUnavailable));
 app.Run();
+
+static bool IsValidSigningKey(string? privateKeyPem)
+{
+    if (string.IsNullOrWhiteSpace(privateKeyPem)) return false;
+    try
+    {
+        using var key = ECDsa.Create();
+        key.ImportFromPem(privateKeyPem);
+        return key.KeySize == 256 && key.ExportParameters(true).D is not null;
+    }
+    catch (CryptographicException) { return false; }
+    catch (ArgumentException) { return false; }
+}
 
 internal sealed record LicenseRequest(string? Name, string? Email, string? Phone, string? Country, string? MachineId);

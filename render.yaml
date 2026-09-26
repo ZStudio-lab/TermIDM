@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: termidm-license-issuer
+    runtime: docker
+    plan: free
+    dockerfilePath: ./LicenseIssuer/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    envVars:
+      - key: TERMIDM_LICENSE_PRIVATE_KEY_PEM
+        sync: false
+      - key: TERMIDM_LICENSE_ALLOWED_ORIGIN
+        value: https://zstudio-lab.github.io
