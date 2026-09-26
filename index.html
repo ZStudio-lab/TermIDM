@@ -21,7 +21,7 @@
     </section>
     <section class="section" id="features"><div class="shell"><div class="sectionhead"><span class="eyebrow">Built for the way files move</span><h2>More control from first byte to finish.</h2><p>TermIDM combines a modern Windows interface with a native transfer engine and clear, useful download telemetry.</p></div><div class="features"><article class="card"><div class="icon">↗</div><h3>Parallel transfers</h3><p>Split range-capable downloads across configurable connections and make better use of available bandwidth.</p></article><article class="card"><div class="icon">⟳</div><h3>Recover and resume</h3><p>Pause, resume, and recover interrupted downloads when the server supports byte ranges.</p></article><article class="card"><div class="icon">⌁</div><h3>Live telemetry</h3><p>See per-download progress, transfer rate, estimated time, and active connection state at a glance.</p></article></div></div></section>
     <section class="section" id="license"><div class="shell license-wrap"><div class="license-info"><span class="eyebrow">Device activation</span><h2>Get your signed activation key.</h2><p>Copy the device ID shown by TermIDM, enter your details, then paste the returned key into the app. The key signature is verified offline and the accepted token is protected with Windows DPAPI.</p><div class="steps"><div class="step"><strong>01 · Device ID</strong>Copy from the app activation screen.</div><div class="step"><strong>02 · Request</strong>Submit your registration details.</div><div class="step"><strong>03 · Activate</strong>Paste the signed key into TermIDM.</div></div><p class="privacy">Your phone number is only used for request validation and is not embedded in the key. This page does not save form entries.</p></div>
-      <form class="license-card" id="licenseForm"><div class="formgrid"><div class="field"><label for="name">Name</label><input id="name" name="name" autocomplete="name" maxlength="100" required></div><div class="field"><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" maxlength="254" required></div><div class="field"><label for="phone">Phone number</label><input id="phone" name="phone" type="tel" autocomplete="tel" maxlength="40" required></div><div class="field"><label for="country">Country</label><input id="country" name="country" autocomplete="country-name" maxlength="80" required></div><div class="field full"><label for="machineId">Device ID from TermIDM</label><input id="machineId" name="machineId" placeholder="64-character device ID" minlength="64" maxlength="64" pattern="[0-9a-fA-F]{64}" required></div></div><button class="button" style="width:100%;margin-top:18px" type="submit">Generate signed key</button><p class="status" id="formStatus" role="status" aria-live="polite"></p><div class="keyout" id="keyOutput"><strong>Activation key</strong><p class="keytext" id="keyText"></p><button type="button" class="button secondary" id="copyKey">Copy key</button></div><p class="privacy">Activation requires the TermIDM license service. If the form reports that issuance is unavailable, the service has not yet been deployed or configured.</p></form>
+      <form class="license-card" id="licenseForm"><div class="formgrid"><div class="field"><label for="name">Name</label><input id="name" name="name" autocomplete="name" maxlength="100" required></div><div class="field"><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" maxlength="254" required></div><div class="field"><label for="phone">Phone number</label><input id="phone" name="phone" type="tel" autocomplete="tel" maxlength="40" required></div><div class="field"><label for="country">Country</label><input id="country" name="country" autocomplete="country-name" maxlength="80" required></div><div class="field full"><label for="machineId">Device ID from TermIDM</label><input id="machineId" name="machineId" placeholder="64-character device ID" minlength="64" maxlength="64" pattern="[0-9a-fA-F]{64}" required></div></div><button class="button" style="width:100%;margin-top:18px" type="submit">Generate signed key</button><p class="status" id="formStatus" role="status" aria-live="polite"></p><div class="keyout" id="keyOutput"><strong>Activation key</strong><p class="keytext" id="keyText"></p><button type="button" class="button secondary" id="copyKey">Copy key</button></div><p class="privacy">Before sending, this page encrypts the form payload with AES-256-GCM and wraps its one-time key with the issuer's RSA-OAEP public key. The issuer needs the matching private key to process it. HTTPS is still required.</p></form>
     </div></section>
   </main>
   <footer class="shell footer"><span>© <span id="year"></span> zstudio-lab · TermIDM</span><span><a href="https://github.com/zstudio-lab/TermIDM">Source code</a> · <a href="https://github.com/zstudio-lab/TermIDM/releases/latest">Releases</a></span></footer>
@@ -32,15 +32,50 @@
     const form = document.getElementById('licenseForm');
     const status = document.getElementById('formStatus');
     const output = document.getElementById('keyOutput');
+    const issuerEncryptionPublicKey = `-----BEGIN PUBLIC KEY-----
+MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEAzKn38VrIoBlsk/YvW0r6
+BBCkXi3AG0Xno3TPOE5BlDXn2F56Bk2ii5ddWnw8AHuPAdZUjMFfn6ohYKX+boqI
+A0HVjwA/4xuYb156bbSiTqp6fKdiBffDjsb9i5gLSNQclbWi9ituYhYyuKMd9r5w
+xlw3LBopfrXrTz7D+KC2PptLXkAJ/V89b3lEZwexK0JtR04e5mLT4hzti80BiVKm
+y65qJ4izYmmY1bEPzZnyrJ9HmY300xXrHs32hMANuuN/nboIHTnN5xY0MN5KPGxn
+Hew/AlB9SHwtmnexxfppdMwUG5Zav2V3A9BiR+CGa5Swl65FBUlUw4BIh+1q7rD3
+6VVbdz5yGZD4mKh8EGNHNgXYuDj6TntyLaTHA0ANgz+j4Tqu7eZN5zkld0+mVysS
+xBUSurD54S1qrgeOigZi6AbN7YDEIW4Ds/Rdk4y73Q2wq4LJk8qQqGMUgjfmD/+9
+gDTY2FkWFv0VDQ6jHWIL04aRKansVGYIulPwtdUxZGN5AgMBAAE=
+-----END PUBLIC KEY-----`;
+    const toBase64 = bytes => {
+      let binary = '';
+      for (const byte of bytes) binary += String.fromCharCode(byte);
+      return btoa(binary);
+    };
+    async function encryptRegistration(data) {
+      if (!window.isSecureContext || !window.crypto?.subtle) {
+        throw new Error('Secure browser encryption requires the HTTPS version of this page.');
+      }
+      const publicKeyBytes = Uint8Array.from(
+        atob(issuerEncryptionPublicKey.replace(/-----[^-]+-----/g, '').replace(/\s/g, '')),
+        char => char.charCodeAt(0));
+      const publicKey = await crypto.subtle.importKey(
+        'spki', publicKeyBytes, { name: 'RSA-OAEP', hash: 'SHA-256' }, false, ['encrypt']);
+      const contentKey = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, ['encrypt']);
+      const rawContentKey = await crypto.subtle.exportKey('raw', contentKey);
+      const nonce = crypto.getRandomValues(new Uint8Array(12));
+      const ciphertext = await crypto.subtle.encrypt(
+        { name: 'AES-GCM', iv: nonce, tagLength: 128 }, contentKey,
+        new TextEncoder().encode(JSON.stringify(data)));
+      const wrappedKey = await crypto.subtle.encrypt({ name: 'RSA-OAEP' }, publicKey, rawContentKey);
+      return { wrappedKey: toBase64(new Uint8Array(wrappedKey)), nonce: toBase64(nonce), ciphertext: toBase64(new Uint8Array(ciphertext)) };
+    }
     form.addEventListener('submit', async event => {
       event.preventDefault(); output.classList.remove('visible');
       const endpoint = document.querySelector('meta[name="license-api-endpoint"]')?.content.trim();
       if (!endpoint) { status.textContent = 'The license issuer is not configured yet. Please try again after the service is published.'; return; }
       const data = Object.fromEntries(new FormData(form).entries());
-      status.textContent = 'Requesting a device-bound signature…';
+      status.textContent = 'Encrypting details and requesting a device-bound signature…';
       const submit = form.querySelector('button[type="submit"]'); submit.disabled = true;
       try {
-        const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+        const encrypted = await encryptRegistration(data);
+        const response = await fetch(endpoint, { method: 'POST', credentials: 'omit', referrerPolicy: 'no-referrer', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(encrypted) });
         const result = await response.json().catch(() => ({}));
         if (!response.ok || typeof result.key !== 'string') throw new Error(result.error || result.title || `License service returned HTTP ${response.status}.`);
         document.getElementById('keyText').textContent = result.key;
