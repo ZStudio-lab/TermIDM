@@ -20,7 +20,7 @@ Install .NET 8 SDK, MinGW-w64 (`g++` and `windres`) and the libcurl MinGW develo
 ./build.ps1
 ```
 
-Each build increments the patch number. The self-contained WinUI app and native engine are packaged in `release/TermIDM-v<version>-Windows-x64.zip`; `release/TermIDM-Windows-x64.zip` is the stable “latest” asset. Pass `-NoVersionIncrement` only for a local rebuild of the current version. Build outputs are ignored by Git.
+Each build increments the patch number. The self-contained WinUI app and native engine are written to `release/TermIDM-v<version>-Windows-x64/` and packaged as `release/TermIDM-v<version>-Windows-x64.zip`; `release/TermIDM-Windows-x64.zip` is the stable “latest” asset. Run `TermIDM.exe` directly from the versioned folder or extract the ZIP. Pass `-NoVersionIncrement` only for a local rebuild of the current version. Build outputs are ignored by Git.
 
 ## GitHub release automation
 

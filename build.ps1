@@ -30,7 +30,7 @@ if (-not $NoVersionIncrement) {
 }
 
 $buildDir = Join-Path $PSScriptRoot 'build'
-$stage = Join-Path $PSScriptRoot "release\staging-v$version"
+$stage = Join-Path $PSScriptRoot "release\TermIDM-v$version-Windows-x64"
 $releaseDir = Join-Path $PSScriptRoot 'release'
 $engineExe = Join-Path $buildDir 'TermIDM.Engine.exe'
 $nativeResource = Join-Path $buildDir 'app-resource.o'
@@ -85,7 +85,6 @@ try {
     foreach ($archivePath in @($versionedZip, $stableZip)) { if ([IO.File]::Exists($archivePath)) { [IO.File]::Delete($archivePath) } }
     Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $versionedZip -CompressionLevel Optimal
     Copy-Item -LiteralPath $versionedZip -Destination $stableZip -Force
-    [IO.Directory]::Delete($stage, $true)
     Write-Host "Published unsigned TermIDM v$version to $versionedZip"
     Write-Host 'The ZIP contains only the self-contained WinUI app, native engine, and required runtime files.'
 }

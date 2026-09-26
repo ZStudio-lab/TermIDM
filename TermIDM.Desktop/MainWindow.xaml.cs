@@ -96,6 +96,7 @@ public sealed partial class MainWindow : Window
                 catch (Exception ex) { StatusText.Text = $"Could not open the license page: {ex.Message}"; }
             };
             var body = new StackPanel { Spacing = 10, MaxWidth = 500 };
+            body.Children.Add(new TextBlock { Text = "Device activation", FontSize = 20, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
             body.Children.Add(new TextBlock { Text = "TermIDM is free to use. Activate this installation with a signed key bound to this device.", TextWrapping = TextWrapping.Wrap });
             body.Children.Add(new TextBlock { Text = "Device ID", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
             body.Children.Add(machineId);
@@ -103,20 +104,15 @@ public sealed partial class MainWindow : Window
             body.Children.Add(openPortal);
             body.Children.Add(new TextBlock { Text = "Activation key", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
             body.Children.Add(key);
-            var dialog = new ContentDialog
-            {
-                Title = "Activate TermIDM",
-                Content = body,
-                PrimaryButtonText = "Activate",
-                CloseButtonText = "Exit",
-                DefaultButton = ContentDialogButton.Primary,
-                XamlRoot = Root.XamlRoot
-            };
-            var result = await dialog.ShowAsync();
-            if (result != ContentDialogResult.Primary) return false;
+            if (!await ShowSubWindowAsync("Activate TermIDM", body, "Activate", "Exit", 590, 560)) return false;
             if (!LicenseService.Validate(key.Text.Trim(), out var message))
             {
-                await ShowMessageAsync("Invalid Key", message);
+                if (!await ShowSubWindowAsync("Invalid Key", new TextBlock
+                {
+                    Text = message,
+                    TextWrapping = TextWrapping.Wrap,
+                    FontSize = 14
+                }, "Try Again", "Exit", 480, 220)) return false;
                 continue;
             }
             try
@@ -127,7 +123,11 @@ public sealed partial class MainWindow : Window
             }
             catch (Exception ex)
             {
-                await ShowMessageAsync("Activation could not be saved", ex.Message);
+                if (!await ShowSubWindowAsync("Activation could not be saved", new TextBlock
+                {
+                    Text = ex.Message,
+                    TextWrapping = TextWrapping.Wrap
+                }, "Try Again", "Exit", 480, 220)) return false;
             }
         }
     }
