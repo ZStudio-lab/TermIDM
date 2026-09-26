@@ -3,6 +3,7 @@ using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Imaging;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -36,6 +37,8 @@ public sealed partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        var logoPath = Path.Combine(AppContext.BaseDirectory, "assets", "termidm.ico");
+        if (File.Exists(logoPath)) BrandLogoImage.Source = new BitmapImage(new Uri(logoPath));
         uiQueue = DispatcherQueue.GetForCurrentThread();
         DownloadList.ItemsSource = visibleDownloads;
         Root.RequestedTheme = ElementTheme.Dark;

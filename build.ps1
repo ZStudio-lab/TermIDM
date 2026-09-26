@@ -25,6 +25,7 @@ if (-not $NoVersionIncrement) {
     if (Test-Path -LiteralPath $pagePath) {
         $page = [IO.File]::ReadAllText($pagePath)
         $page = [regex]::Replace($page, '(<meta name="termidm-version" content=")[^"]*(">)', [System.Text.RegularExpressions.MatchEvaluator]{ param($m) $m.Groups[1].Value + $version + $m.Groups[2].Value })
+        $page = [regex]::Replace($page, '(<span id="version">)[^<]*(</span>)', [System.Text.RegularExpressions.MatchEvaluator]{ param($m) $m.Groups[1].Value + $version + $m.Groups[2].Value })
         [IO.File]::WriteAllText($pagePath, $page, $utf8)
     }
 }
@@ -85,6 +86,13 @@ try {
     foreach ($archivePath in @($versionedZip, $stableZip)) { if ([IO.File]::Exists($archivePath)) { [IO.File]::Delete($archivePath) } }
     Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $versionedZip -CompressionLevel Optimal
     Copy-Item -LiteralPath $versionedZip -Destination $stableZip -Force
+    foreach ($oldFolder in Get-ChildItem -LiteralPath $releaseDir -Directory -Filter 'TermIDM-v*-Windows-x64' | Where-Object FullName -NE $stage) {
+        try { [IO.Directory]::Delete($oldFolder.FullName, $true) } catch { Write-Warning "Could not remove old build folder $($oldFolder.Name): $($_.Exception.Message)" }
+    }
+    foreach ($pattern in @('TermIDM-v*-Windows-x64.zip', 'TermIDM-Setup-v*-Windows-x64.exe')) {
+        Get-ChildItem -LiteralPath $releaseDir -File -Filter $pattern | Where-Object Name -NotIn @((Split-Path -Leaf $versionedZip), "TermIDM-Setup-v$version-Windows-x64.exe") |
+            ForEach-Object { try { [IO.File]::Delete($_.FullName) } catch { Write-Warning "Could not remove old release file $($_.Name): $($_.Exception.Message)" } }
+    }
     Write-Host "Published unsigned TermIDM v$version to $versionedZip"
     Write-Host 'The ZIP contains only the self-contained WinUI app, native engine, and required runtime files.'
 }

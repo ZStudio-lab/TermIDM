@@ -106,7 +106,7 @@
             <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Spacing="12">
                 <Border Width="44" Height="44" CornerRadius="13" Background="#FF153A52"
                         BorderBrush="#FF255773" BorderThickness="1">
-                    <FontIcon Glyph="&#xE896;" FontSize="23" Foreground="#FF72D0FA" />
+                    <Image x:Name="BrandLogoImage" Width="29" Height="29" Stretch="Uniform" />
                 </Border>
                 <StackPanel VerticalAlignment="Center" Spacing="3">
                     <TextBlock Text="TermIDM" FontSize="21" FontWeight="SemiBold" />

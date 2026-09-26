@@ -22,6 +22,14 @@ Install .NET 8 SDK, MinGW-w64 (`g++` and `windres`) and the libcurl MinGW develo
 
 Each build increments the patch number. The self-contained WinUI app and native engine are written to `release/TermIDM-v<version>-Windows-x64/` and packaged as `release/TermIDM-v<version>-Windows-x64.zip`; `release/TermIDM-Windows-x64.zip` is the stable “latest” asset. Run `TermIDM.exe` directly from the versioned folder or extract the ZIP. Pass `-NoVersionIncrement` only for a local rebuild of the current version. Build outputs are ignored by Git.
 
+To create a per-user Windows installer with Start Menu and optional desktop shortcuts, install Inno Setup 6 and run:
+
+```powershell
+./build-installer.ps1
+```
+
+The installer uses the TermIDM icon, installs under the current user's LocalAppData, and does not request administrator rights. It is written to `release/TermIDM-Setup-v<version>-Windows-x64.exe`; `release/TermIDM-Setup-Windows-x64.exe` is the stable latest build. The release automation uploads both installer names alongside the ZIPs.
+
 ## GitHub release automation
 
 Create a GitHub repository and configure it as `origin`. Sign in with GitHub CLI (`gh auth login`), check out the release branch, and run:

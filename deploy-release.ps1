@@ -28,11 +28,15 @@ try {
 
     & (Join-Path $root 'build.ps1')
     if ($LASTEXITCODE -ne 0) { throw 'Release build failed.' }
+    & (Join-Path $root 'build-installer.ps1')
+    if ($LASTEXITCODE -ne 0) { throw 'Installer build failed.' }
     $builtVersion = [IO.File]::ReadAllText((Join-Path $root 'VERSION')).Trim()
     if ($builtVersion -ne $nextVersion) { throw "Expected version $nextVersion, build produced $builtVersion." }
     $archive = Join-Path $root "release\TermIDM-v$builtVersion-Windows-x64.zip"
     $stableArchive = Join-Path $root 'release\TermIDM-Windows-x64.zip'
-    if (-not (Test-Path -LiteralPath $archive) -or -not (Test-Path -LiteralPath $stableArchive)) { throw 'Expected release archives were not produced.' }
+    $setupExe = Join-Path $root "release\TermIDM-Setup-v$builtVersion-Windows-x64.exe"
+    $stableSetupExe = Join-Path $root 'release\TermIDM-Setup-Windows-x64.exe'
+    if (-not (Test-Path -LiteralPath $archive) -or -not (Test-Path -LiteralPath $stableArchive) -or -not (Test-Path -LiteralPath $setupExe) -or -not (Test-Path -LiteralPath $stableSetupExe)) { throw 'Expected release archives or setup programs were not produced.' }
 
     & $git.Source add --all
     if ($LASTEXITCODE -ne 0) { throw 'git add failed.' }
@@ -45,7 +49,7 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Branch push failed. The release commit and tag remain local; correct the remote and retry the push.' }
     & $git.Source push origin $tag
     if ($LASTEXITCODE -ne 0) { throw 'Tag push failed. The release tag remains local; correct the remote and retry the tag push.' }
-    & $gh.Source release create $tag $archive $stableArchive --title "TermIDM v$builtVersion" --generate-notes
+    & $gh.Source release create $tag $archive $stableArchive $setupExe $stableSetupExe --title "TermIDM v$builtVersion" --generate-notes
     if ($LASTEXITCODE -ne 0) { throw 'GitHub release creation failed. The commit, tag, and archives are available locally.' }
     Write-Host "Released TermIDM v$builtVersion."
 }

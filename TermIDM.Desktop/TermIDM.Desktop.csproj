@@ -17,6 +17,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Content Include="..\VERSION" Link="VERSION" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\assets\termidm.ico" Link="assets\termidm.ico" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <EmbeddedResource Include="license-public-key.pem" LogicalName="TermIDM.Desktop.license-public-key.pem" />
   </ItemGroup>
   <ItemGroup>
