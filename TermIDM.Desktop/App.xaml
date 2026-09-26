@@ -1,0 +1,19 @@
+<Application
+    x:Class="TermIDM.Desktop.App"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
+            </ResourceDictionary.MergedDictionaries>
+            <SolidColorBrush x:Key="TermWindowBackground" Color="#FF121212" />
+            <SolidColorBrush x:Key="TermSurface" Color="#FF1E1E1E" />
+            <SolidColorBrush x:Key="TermSurfaceRaised" Color="#FF252525" />
+            <SolidColorBrush x:Key="TermBorder" Color="#FF333333" />
+            <SolidColorBrush x:Key="TermForeground" Color="#FFF2F2F2" />
+            <SolidColorBrush x:Key="TermMutedForeground" Color="#FFADB3BB" />
+            <SolidColorBrush x:Key="TermAccent" Color="#FF007ACC" />
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

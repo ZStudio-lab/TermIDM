@@ -1,0 +1,46 @@
+# Build products and generated releases
+/build/
+/release/
+/TermIDM.Desktop/bin/
+/TermIDM.Desktop/obj/
+/LicenseIssuer/bin/
+/LicenseIssuer/obj/
+*.exe
+*.dll
+*.xbf
+*.pri
+*.winmd
+*.o
+*.zip
+*.pdb
+*.cache
+*.tmp
+
+# Local toolchain packages and generated staging copies
+/build-deps/curl/
+/build-deps/curl.zip
+/build-deps/TermIDMSourceStage/
+/build-deps/TermIDMSourceRelease/
+/SignTool-*/
+/SignTool-*.zip
+/benchmark-output/
+/Microsoft.UI.Xaml/
+
+# Per-machine and private licensing material
+/license-authority-private.pem
+/secrets/
+/appsettings.*.json
+/.env
+.env.*
+*.pfx
+*.p12
+*.key
+
+# User/editor files
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+desktop.ini
+Thumbs.db

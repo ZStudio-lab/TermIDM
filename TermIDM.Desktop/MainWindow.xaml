@@ -1,0 +1,294 @@
+<Window
+    x:Class="TermIDM.Desktop.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:TermIDM.Desktop"
+    Title="TermIDM">
+    <Grid x:Name="Root" RequestedTheme="Dark" Background="#FF121212" Padding="18">
+        <Grid.Resources>
+            <SolidColorBrush x:Key="PageSurface" Color="#FF1E1E1E" />
+            <SolidColorBrush x:Key="PanelSurface" Color="#FF1E1E1E" />
+            <SolidColorBrush x:Key="PanelRaised" Color="#FF262626" />
+            <SolidColorBrush x:Key="LineBrush" Color="#FF353535" />
+            <SolidColorBrush x:Key="MutedBrush" Color="#FF9CA5B3" />
+            <SolidColorBrush x:Key="AccentBrush" Color="#FF36A9E1" />
+            <LinearGradientBrush x:Key="ProgressBrush" StartPoint="0,0" EndPoint="1,0">
+                <GradientStop Color="#FF338DCC" Offset="0" />
+                <GradientStop Color="#FF64C6D2" Offset="1" />
+            </LinearGradientBrush>
+            <LinearGradientBrush x:Key="AddButtonBrush" StartPoint="0,1" EndPoint="1,0">
+                <GradientStop Color="#FF087FC1" Offset="0" />
+                <GradientStop Color="#FF075E98" Offset="1" />
+            </LinearGradientBrush>
+            <Style x:Key="ToolbarButtonStyle" TargetType="Button">
+                <Setter Property="Width" Value="40" />
+                <Setter Property="Height" Value="40" />
+                <Setter Property="Padding" Value="0" />
+                <Setter Property="Margin" Value="0,0,8,0" />
+                <Setter Property="Background" Value="#FF20232A" />
+                <Setter Property="BorderBrush" Value="#FF353A44" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="CornerRadius" Value="10" />
+                <Setter Property="Foreground" Value="#FFE7EDF5" />
+            </Style>
+            <Style x:Key="PrimaryToolbarButtonStyle" TargetType="Button" BasedOn="{StaticResource ToolbarButtonStyle}">
+                <Setter Property="Background" Value="{StaticResource AddButtonBrush}" />
+                <Setter Property="BorderBrush" Value="#FF168BD0" />
+                <Setter Property="Foreground" Value="White" />
+            </Style>
+            <Style x:Key="NavButtonStyle" TargetType="Button">
+                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                <Setter Property="Padding" Value="10,9" />
+                <Setter Property="Margin" Value="0,1" />
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="BorderBrush" Value="Transparent" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="Foreground" Value="#FFD5DBE5" />
+                <Setter Property="CornerRadius" Value="8" />
+                <Setter Property="HorizontalAlignment" Value="Stretch" />
+            </Style>
+            <Style x:Key="DownloadListItemStyle" TargetType="ListViewItem">
+                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                <Setter Property="Padding" Value="8,5" />
+                <Setter Property="Margin" Value="0,2" />
+                <Setter Property="Background" Value="Transparent" />
+            </Style>
+            <DataTemplate x:Key="DownloadRowTemplate" x:DataType="local:DownloadItem">
+                <Grid MinHeight="50" ColumnSpacing="12" VerticalAlignment="Center">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="1.55*" MinWidth="130" />
+                        <ColumnDefinition Width="112" />
+                        <ColumnDefinition Width="86" />
+                        <ColumnDefinition Width="2.1*" MinWidth="150" />
+                        <ColumnDefinition Width="92" />
+                        <ColumnDefinition Width="72" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="2">
+                        <TextBlock Text="{Binding FileName}" FontSize="12" FontWeight="SemiBold"
+                                   TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="{Binding Folder}" FontSize="10" Foreground="#FF929BA8"
+                                   TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+                    <Border Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Center"
+                            Background="#FF18394A" CornerRadius="10" Padding="8,4">
+                        <TextBlock Text="{Binding Status}" FontSize="10" Foreground="#FF8BD5F4"
+                                   TextTrimming="CharacterEllipsis" />
+                    </Border>
+                    <TextBlock Grid.Column="2" Text="{Binding SizeText}" FontSize="11"
+                               Foreground="#FFD1D6DE" VerticalAlignment="Center" />
+                    <Grid Grid.Column="3" Height="27" VerticalAlignment="Center">
+                        <ProgressBar Minimum="0" Maximum="100" Value="{Binding Percent}"
+                                     Background="#FF111111" Foreground="{StaticResource ProgressBrush}" />
+                        <TextBlock Text="{Binding ProgressText}" FontSize="10" FontWeight="SemiBold"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis" Margin="8,0" IsHitTestVisible="False" />
+                    </Grid>
+                    <TextBlock Grid.Column="4" Text="{Binding SpeedText}" FontSize="11"
+                               Foreground="#FFD1D6DE" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="5" Text="{Binding EtaText}" FontSize="11"
+                               Foreground="#FFAFB7C3" VerticalAlignment="Center" />
+                </Grid>
+            </DataTemplate>
+        </Grid.Resources>
+
+        <Grid.RowDefinitions>
+            <RowDefinition Height="76" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="34" />
+        </Grid.RowDefinitions>
+
+        <!-- Header and compact, accessible icon toolbar -->
+        <Grid Grid.Row="0" Margin="2,0,2,13">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Spacing="12">
+                <Border Width="44" Height="44" CornerRadius="13" Background="#FF153A52"
+                        BorderBrush="#FF255773" BorderThickness="1">
+                    <FontIcon Glyph="&#xE896;" FontSize="23" Foreground="#FF72D0FA" />
+                </Border>
+                <StackPanel VerticalAlignment="Center" Spacing="3">
+                    <TextBlock Text="TermIDM" FontSize="21" FontWeight="SemiBold" />
+                    <TextBlock x:Name="VersionText" Text="Downloads" Foreground="{StaticResource MutedBrush}" FontSize="11" />
+                </StackPanel>
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                <Border Background="#FF1B222B" BorderBrush="#FF303A46" BorderThickness="1"
+                        CornerRadius="10" Padding="11,6" Margin="0,0,12,0">
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <FontIcon Glyph="&#xE8D4;" FontSize="15" Foreground="#FF55BCEB" />
+                        <StackPanel Spacing="1">
+                            <TextBlock Text="TOTAL SPEED" FontSize="8" CharacterSpacing="60" Foreground="#FF8993A1" />
+                            <TextBlock x:Name="TotalSpeedText" Text="0 B/s" FontSize="11" FontWeight="SemiBold" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+                <Button Style="{StaticResource PrimaryToolbarButtonStyle}" Click="AddUrl_Click"
+                        ToolTipService.ToolTip="Add download" AutomationProperties.Name="Add download">
+                    <FontIcon Glyph="&#xE710;" FontSize="17" />
+                </Button>
+                <Border Width="1" Height="27" Background="{StaticResource LineBrush}" Margin="0,0,10,0" />
+                <Button Style="{StaticResource ToolbarButtonStyle}" Click="Resume_Click"
+                        ToolTipService.ToolTip="Resume selected download" AutomationProperties.Name="Resume download">
+                    <FontIcon Glyph="&#xE768;" FontSize="16" />
+                </Button>
+                <Button Style="{StaticResource ToolbarButtonStyle}" Click="Pause_Click"
+                        ToolTipService.ToolTip="Pause selected download" AutomationProperties.Name="Pause download">
+                    <FontIcon Glyph="&#xE769;" FontSize="16" />
+                </Button>
+                <Button Style="{StaticResource ToolbarButtonStyle}" Click="Stop_Click"
+                        ToolTipService.ToolTip="Stop selected download" AutomationProperties.Name="Stop download">
+                    <FontIcon Glyph="&#xE71A;" FontSize="15" Foreground="#FFFF8B83" />
+                </Button>
+                <Border Width="1" Height="27" Background="{StaticResource LineBrush}" Margin="1,0,10,0" />
+                <Button Style="{StaticResource ToolbarButtonStyle}" Click="Options_Click" ToolTipService.ToolTip="Settings"
+                        AutomationProperties.Name="Settings" Margin="0">
+                    <FontIcon Glyph="&#xE713;" FontSize="17" />
+                </Button>
+            </StackPanel>
+        </Grid>
+
+        <!-- Navigation rail and download workspace -->
+        <Grid Grid.Row="1" ColumnSpacing="14">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="196" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0" Background="#FF1E1E1E" BorderBrush="#FF303030"
+                    BorderThickness="1" CornerRadius="12" Padding="10">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <StackPanel Spacing="2">
+                        <TextBlock Text="LIBRARY" Foreground="#FF8993A1" FontSize="10" FontWeight="SemiBold"
+                                   CharacterSpacing="90" Margin="9,10,0,8" />
+                        <Button x:Name="NavAll" Click="FilterAll_Click" Style="{StaticResource NavButtonStyle}">
+                            <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="20"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <FontIcon Glyph="&#xE80F;" FontSize="15" Foreground="#FF91A7BA" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1" Text="All downloads" VerticalAlignment="Center" FontSize="12" />
+                                <TextBlock x:Name="AllCount" Grid.Column="2" Text="0" Foreground="#FF8993A1" FontSize="10" VerticalAlignment="Center" />
+                            </Grid>
+                        </Button>
+                        <Button x:Name="NavDownloading" Click="FilterActive_Click" Style="{StaticResource NavButtonStyle}">
+                            <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="20"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <FontIcon Glyph="&#xE896;" FontSize="15" Foreground="#FF48B7EE" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1" Text="Downloading" VerticalAlignment="Center" FontSize="12" />
+                                <Border Grid.Column="2" Background="#FF153B50" CornerRadius="9" Padding="7,3">
+                                    <TextBlock x:Name="DownloadingCount" Text="0" Foreground="#FF83D4F7" FontSize="10" />
+                                </Border>
+                            </Grid>
+                        </Button>
+                        <Button x:Name="NavCompleted" Click="FilterCompleted_Click" Style="{StaticResource NavButtonStyle}">
+                            <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="20"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <FontIcon Glyph="&#xE73E;" FontSize="15" Foreground="#FF71C99A" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1" Text="Completed" VerticalAlignment="Center" FontSize="12" />
+                                <TextBlock x:Name="CompletedCount" Grid.Column="2" Text="0" Foreground="#FF8993A1" FontSize="10" VerticalAlignment="Center" />
+                            </Grid>
+                        </Button>
+                        <Button x:Name="NavPaused" Click="FilterPaused_Click" Style="{StaticResource NavButtonStyle}">
+                            <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="20"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <FontIcon Glyph="&#xE769;" FontSize="14" Foreground="#FFE4B66F" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1" Text="Paused" VerticalAlignment="Center" FontSize="12" />
+                                <TextBlock x:Name="PausedCount" Grid.Column="2" Text="0" Foreground="#FF8993A1" FontSize="10" VerticalAlignment="Center" />
+                            </Grid>
+                        </Button>
+
+                        <Border Height="1" Background="#FF2C3038" Margin="8,12" />
+                        <TextBlock Text="CATEGORIES" Foreground="#FF8993A1" FontSize="10" FontWeight="SemiBold"
+                                   CharacterSpacing="90" Margin="9,2,0,8" />
+                        <Button x:Name="NavGeneral" Click="FilterGeneral_Click" Style="{StaticResource NavButtonStyle}">
+                            <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="20"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <FontIcon Glyph="&#xE8B7;" FontSize="15" Foreground="#FFB7A6E6" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1" Text="General" VerticalAlignment="Center" FontSize="12" />
+                            </Grid>
+                        </Button>
+                        <Button x:Name="NavCompressed" Click="FilterCompressed_Click" Style="{StaticResource NavButtonStyle}">
+                            <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="20"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <FontIcon Glyph="&#xE8A5;" FontSize="15" Foreground="#FFE7A96B" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1" Text="Compressed" VerticalAlignment="Center" FontSize="12" />
+                            </Grid>
+                        </Button>
+                        <Button x:Name="NavDocuments" Click="FilterDocuments_Click" Style="{StaticResource NavButtonStyle}">
+                            <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="20"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <FontIcon Glyph="&#xE8A5;" FontSize="15" Foreground="#FF7CB7E8" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1" Text="Documents" VerticalAlignment="Center" FontSize="12" />
+                            </Grid>
+                        </Button>
+                        <Button x:Name="NavVideos" Click="FilterVideos_Click" Style="{StaticResource NavButtonStyle}">
+                            <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="20"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <FontIcon Glyph="&#xE714;" FontSize="14" Foreground="#FFE78BA5" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1" Text="Videos" VerticalAlignment="Center" FontSize="12" />
+                            </Grid>
+                        </Button>
+                    </StackPanel>
+                    <Button Grid.Row="1" x:Name="NavScheduler" Click="Scheduler_Click" Style="{StaticResource NavButtonStyle}"
+                            BorderBrush="#FF2C3038" BorderThickness="0,1,0,0" CornerRadius="0" Padding="9,14,9,5">
+                        <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="20"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <FontIcon Glyph="&#xE121;" FontSize="15" Foreground="#FF88A7C7" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1" Text="Scheduler" VerticalAlignment="Center" FontSize="12" />
+                            <FontIcon Grid.Column="2" Glyph="&#xE76C;" FontSize="11" Foreground="#FF76808D" VerticalAlignment="Center" />
+                        </Grid>
+                    </Button>
+                </Grid>
+            </Border>
+
+            <Border Grid.Column="1" Background="#FF1E1E1E" BorderBrush="#FF303030"
+                    BorderThickness="1" CornerRadius="12" Padding="12">
+                <Grid RowSpacing="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="1" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <Grid Grid.Row="0" ColumnSpacing="12" Padding="8,5,8,7">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="1.55*" MinWidth="130" />
+                            <ColumnDefinition Width="112" />
+                            <ColumnDefinition Width="86" />
+                            <ColumnDefinition Width="2.1*" MinWidth="150" />
+                            <ColumnDefinition Width="92" />
+                            <ColumnDefinition Width="72" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="FILE NAME" Foreground="#FF8993A1" FontSize="10" FontWeight="SemiBold" CharacterSpacing="60" />
+                        <TextBlock Grid.Column="1" Text="STATUS" Foreground="#FF8993A1" FontSize="10" FontWeight="SemiBold" CharacterSpacing="60" />
+                        <TextBlock Grid.Column="2" Text="SIZE" Foreground="#FF8993A1" FontSize="10" FontWeight="SemiBold" CharacterSpacing="60" />
+                        <TextBlock Grid.Column="3" Text="PROGRESS" Foreground="#FF8993A1" FontSize="10" FontWeight="SemiBold" CharacterSpacing="60" />
+                        <TextBlock Grid.Column="4" Text="SPEED" Foreground="#FF8993A1" FontSize="10" FontWeight="SemiBold" CharacterSpacing="60" />
+                        <TextBlock Grid.Column="5" Text="ETA" Foreground="#FF8993A1" FontSize="10" FontWeight="SemiBold" CharacterSpacing="60" />
+                    </Grid>
+                    <Border Grid.Row="1" Background="#FF2C3038" />
+                    <Grid Grid.Row="2">
+                        <ListView x:Name="DownloadList" ItemTemplate="{StaticResource DownloadRowTemplate}"
+                                  ItemContainerStyle="{StaticResource DownloadListItemStyle}" SelectionMode="Single"
+                                  SelectionChanged="DownloadList_SelectionChanged" Background="Transparent" BorderThickness="0" />
+                        <StackPanel x:Name="EmptyState" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                    Spacing="12" MaxWidth="360" IsHitTestVisible="False">
+                            <Border Width="64" Height="64" CornerRadius="20" Background="#FF202A35"
+                                    BorderBrush="#FF2E4154" BorderThickness="1" HorizontalAlignment="Center">
+                                <FontIcon Glyph="&#xE896;" FontSize="27" Foreground="#FF52B6E8" />
+                            </Border>
+                            <TextBlock x:Name="EmptyTitle" Text="Your downloads, at a glance" FontSize="18" FontWeight="SemiBold"
+                                       HorizontalAlignment="Center" />
+                            <TextBlock x:Name="EmptyMessage" Text="Add a link to start a download. Progress, speed and remaining time will appear here."
+                                       Foreground="#FF9CA5B3" TextWrapping="Wrap" TextAlignment="Center" FontSize="12" />
+                        </StackPanel>
+                    </Grid>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <Grid Grid.Row="2" Margin="4,10,4,0" ColumnSpacing="8">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+            <StackPanel Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
+                <Ellipse Width="7" Height="7" Fill="#FF69C995" />
+                <TextBlock x:Name="StatusText" Text="Ready" Foreground="#FF9CA5B3" FontSize="11" VerticalAlignment="Center" />
+            </StackPanel>
+            <TextBlock x:Name="ActiveSummary" Grid.Column="1" Text="0 active downloads" Foreground="#FF8993A1"
+                       FontSize="11" VerticalAlignment="Center" />
+        </Grid>
+    </Grid>
+</Window>
