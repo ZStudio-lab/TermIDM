@@ -85,6 +85,7 @@ try {
     foreach ($archivePath in @($versionedZip, $stableZip)) { if ([IO.File]::Exists($archivePath)) { [IO.File]::Delete($archivePath) } }
     Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $versionedZip -CompressionLevel Optimal
     Copy-Item -LiteralPath $versionedZip -Destination $stableZip -Force
+    [IO.Directory]::Delete($stage, $true)
     Write-Host "Published unsigned TermIDM v$version to $versionedZip"
     Write-Host 'The ZIP contains only the self-contained WinUI app, native engine, and required runtime files.'
 }
