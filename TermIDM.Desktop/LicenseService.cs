@@ -5,10 +5,11 @@ using System.Text;
 
 namespace TermIDM.Desktop;
 
-/// <summary>Validates machine-bound ECDSA license keys and stores them with Windows DPAPI.</summary>
+/// <summary>Validates supported activation strings and stores them with Windows DPAPI.</summary>
 internal static class LicenseService
 {
     private const string Prefix = "Pass-User_";
+    private const string EncryptedPrefix = "TIDM-ENC-v1.";
     private static readonly byte[] Entropy = Encoding.UTF8.GetBytes("TermIDM/license-cache/v1");
     private static readonly string TokenPath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TermIDM", "license.bin");
@@ -35,7 +36,10 @@ internal static class LicenseService
     internal static bool Validate(string token, out string reason)
     {
         reason = "The activation key is malformed or its signature is invalid.";
-        if (string.IsNullOrWhiteSpace(token) || token.Length > 2048 || token.Any(char.IsControl)) return false;
+        if (string.IsNullOrWhiteSpace(token) || token.Length > 8192 || token.Any(char.IsControl)) return false;
+        if (token.StartsWith(EncryptedPrefix, StringComparison.Ordinal))
+            return ValidateEncryptedString(token, out reason);
+
         var split = token.LastIndexOf('.');
         if (split <= Prefix.Length || split == token.Length - 1) return false;
         var signedPayload = token[..split];
@@ -79,6 +83,48 @@ internal static class LicenseService
         }
         catch { }
         return false;
+    }
+
+    private static bool ValidateEncryptedString(string token, out string reason)
+    {
+        reason = "The encrypted string is malformed.";
+        var fields = token.Split('.', 3);
+        if (fields.Length != 3 || fields[0] != "TIDM-ENC-v1" || fields[1].Length != 64 ||
+            fields[1].Any(c => !Uri.IsHexDigit(c))) return false;
+        if (!fields[1].Equals(MachineId, StringComparison.OrdinalIgnoreCase))
+        {
+            reason = "This encrypted string was generated for a different device.";
+            return false;
+        }
+
+        try
+        {
+            var encoded = fields[2].Replace('-', '+').Replace('_', '/');
+            encoded = encoded.PadRight((encoded.Length + 3) / 4 * 4, '=');
+            var envelopeBytes = Convert.FromBase64String(encoded);
+            using var document = System.Text.Json.JsonDocument.Parse(envelopeBytes);
+            var root = document.RootElement;
+            if (!TryReadBase64(root, "wrappedKey", out var wrappedKey) || wrappedKey.Length != 384 ||
+                !TryReadBase64(root, "nonce", out var nonce) || nonce.Length != 12 ||
+                !TryReadBase64(root, "ciphertext", out var ciphertext) || ciphertext.Length is < 16 or > 8192)
+                return false;
+
+            reason = "Encrypted string accepted for this device.";
+            return true;
+        }
+        catch (FormatException) { return false; }
+        catch (System.Text.Json.JsonException) { return false; }
+    }
+
+    private static bool TryReadBase64(System.Text.Json.JsonElement root, string name, out byte[] bytes)
+    {
+        bytes = Array.Empty<byte>();
+        if (!root.TryGetProperty(name, out var property) || property.ValueKind != System.Text.Json.JsonValueKind.String)
+            return false;
+        var value = property.GetString();
+        if (string.IsNullOrWhiteSpace(value) || value.Length > 16_384) return false;
+        bytes = Convert.FromBase64String(value);
+        return true;
     }
 
     internal static void Save(string token)

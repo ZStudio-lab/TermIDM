@@ -2,8 +2,8 @@ TermIDM Desktop quick start
 
 1. Download and extract the latest TermIDM-Windows-x64.zip release.
 2. Run TermIDM.exe. At first launch, copy the displayed Device ID.
-3. Request a signed device key from the License tab on the TermIDM website.
-4. Paste the activation key into the app and activate this device.
+3. Generate an encrypted string on the TermIDM website using this device's Device ID.
+4. Paste the encrypted string into the app. A signed activation key is also accepted.
 5. Select Add Download, paste an HTTP/HTTPS link, choose a save folder and connection count, then select Download Now.
 6. Select a download and use the toolbar controls to resume, pause, or stop it.
 

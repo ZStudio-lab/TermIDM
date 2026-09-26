@@ -73,7 +73,7 @@ public sealed partial class MainWindow : Window
         {
             var key = new TextBox
             {
-                PlaceholderText = "Paste your Pass-User activation key",
+                PlaceholderText = "Paste your encrypted string or signed key",
                 AcceptsReturn = true,
                 TextWrapping = TextWrapping.Wrap,
                 MinHeight = 76
@@ -100,12 +100,12 @@ public sealed partial class MainWindow : Window
             };
             var body = new StackPanel { Spacing = 10, MaxWidth = 500 };
             body.Children.Add(new TextBlock { Text = "Device activation", FontSize = 20, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
-            body.Children.Add(new TextBlock { Text = "TermIDM is free to use. Activate this installation with a signed key bound to this device.", TextWrapping = TextWrapping.Wrap });
+            body.Children.Add(new TextBlock { Text = "TermIDM is free to use. Paste the encrypted string generated for this device, or a signed activation key.", TextWrapping = TextWrapping.Wrap });
             body.Children.Add(new TextBlock { Text = "Device ID", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
             body.Children.Add(machineId);
             body.Children.Add(copyId);
             body.Children.Add(openPortal);
-            body.Children.Add(new TextBlock { Text = "Activation key", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
+            body.Children.Add(new TextBlock { Text = "Encrypted string or activation key", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
             body.Children.Add(key);
             if (!await ShowSubWindowAsync("Activate TermIDM", body, "Activate", "Exit", 590, 560)) return false;
             if (!LicenseService.Validate(key.Text.Trim(), out var message))
@@ -121,7 +121,7 @@ public sealed partial class MainWindow : Window
             try
             {
                 LicenseService.Save(key.Text.Trim());
-                StatusText.Text = "License verified for this device.";
+                StatusText.Text = message;
                 return true;
             }
             catch (Exception ex)

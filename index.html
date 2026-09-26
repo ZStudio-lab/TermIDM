@@ -78,7 +78,7 @@ gDTY2FkWFv0VDQ6jHWIL04aRKansVGYIulPwtdUxZGN5AgMBAAE=
           await new Promise(resolve => setTimeout(resolve, 1000));
         }
         const encoded = toBase64Url(new TextEncoder().encode(JSON.stringify(encrypted)));
-        document.getElementById('keyText').textContent = `TIDM-ENC-v1.${encoded}`;
+        document.getElementById('keyText').textContent = `TIDM-ENC-v1.${data.machineId.toLowerCase()}.${encoded}`;
         output.classList.add('visible'); status.textContent = 'Encrypted string ready.';
       } catch (error) { status.textContent = error instanceof Error ? error.message : 'Could not encrypt these details.'; }
       finally { submit.disabled = false; }
