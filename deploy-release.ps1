@@ -67,18 +67,18 @@ try {
     if (-not (Test-Path -LiteralPath $archive) -or -not (Test-Path -LiteralPath $stableArchive) -or -not (Test-Path -LiteralPath $setupExe) -or -not (Test-Path -LiteralPath $stableSetupExe)) { throw 'Expected release archives or setup programs were not produced.' }
 
     $ErrorActionPreference = 'Continue'
-    & $git.Source add --all 2>&1 | Out-String | Out-Null
-    $ErrorActionPreference = 'Stop'
-    if ($LASTEXITCODE -ne 0) { throw 'git add failed.' }
+    & $git.Source add --all 2>$null
+    if ($LASTEXITCODE -ne 0) { $ErrorActionPreference = 'Stop'; throw 'git add failed.' }
     $message = if ([string]::IsNullOrWhiteSpace($CommitMessage)) { "Release TermIDM v$builtVersion" } else { $CommitMessage }
     & $git.Source commit -m $message 2>$null
-    if ($LASTEXITCODE -ne 0) { throw 'git commit failed. Resolve the repository state before retrying.' }
+    if ($LASTEXITCODE -ne 0) { $ErrorActionPreference = 'Stop'; throw 'git commit failed. Resolve the repository state before retrying.' }
     & $git.Source tag -a $tag -m "TermIDM v$builtVersion" 2>$null
-    if ($LASTEXITCODE -ne 0) { throw "Could not create release tag $tag." }
+    if ($LASTEXITCODE -ne 0) { $ErrorActionPreference = 'Stop'; throw "Could not create release tag $tag." }
     & $git.Source push origin $branch 2>$null
-    if ($LASTEXITCODE -ne 0) { throw 'Branch push failed. The release commit and tag remain local; correct the remote and retry the push.' }
+    if ($LASTEXITCODE -ne 0) { $ErrorActionPreference = 'Stop'; throw 'Branch push failed. The release commit and tag remain local; correct the remote and retry the push.' }
     & $git.Source push origin $tag 2>$null
-    if ($LASTEXITCODE -ne 0) { throw 'Tag push failed. The release tag remains local; correct the remote and retry the tag push.' }
+    if ($LASTEXITCODE -ne 0) { $ErrorActionPreference = 'Stop'; throw 'Tag push failed. The release tag remains local; correct the remote and retry the tag push.' }
+    $ErrorActionPreference = 'Stop'
     if ($releaseMethod -eq 'gh') {
         & $gh.Source release create $tag $archive $stableArchive $setupExe $stableSetupExe --title "TermIDM v$builtVersion" --notes-file $notesFile
         if ($LASTEXITCODE -ne 0) { throw 'GitHub release creation failed. The commit, tag, and archives are available locally.' }
