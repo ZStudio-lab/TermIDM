@@ -95,10 +95,10 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "Could not create tag $tag." }
 
     Write-Host "Pushing to origin..."
-    cmd /c "git push origin $branch" 2>&1 | Out-Null
+    cmd /c "git push origin $branch 2>&1" | Out-Null
     if ($LASTEXITCODE -ne 0) { throw 'Branch push failed.' }
 
-    cmd /c "git push origin $tag" 2>&1 | Out-Null
+    cmd /c "git push origin $tag 2>&1" | Out-Null
     if ($LASTEXITCODE -ne 0) { throw 'Tag push failed.' }
 
     Write-Host "Creating GitHub release..."
