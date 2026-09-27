@@ -48,6 +48,16 @@ try {
     if (-not (Test-Path (Join-Path $curlInclude 'curl\curl.h')) -or
         -not (Test-Path (Join-Path $curlLib 'libcurl.dll.a'))) { throw "libcurl development files were not found under $CurlRoot." }
     $compilerCommand = Get-Command $Compiler -ErrorAction Stop
+
+    # Compile the EngineBridge.dll (P/Invoke bridge for in-process engine)
+    $bridgeDll = Join-Path $buildDir 'EngineBridge.dll'
+    & $compilerCommand.Source -std=c++17 -O2 -shared -DENGINEBRIDGE_EXPORTS `
+        -I $curlInclude `
+        (Join-Path $PSScriptRoot 'TermIDM.Desktop\EngineBridge.cpp') `
+        -L $curlLib '-Wl,-Bstatic' '-l:libcurl.dll.a' `
+        '-Wl,-Bdynamic' -lws2_32 -lcrypt32 -lwldap32 -o $bridgeDll
+    if ($LASTEXITCODE -ne 0) { throw "EngineBridge DLL compilation failed with exit code $LASTEXITCODE." }
+
     & $compilerCommand.Source -std=c++17 -O2 -Wall -Wextra -Wpedantic -municode -mwindows -I $curlInclude `
         (Join-Path $PSScriptRoot 'main.cpp') $nativeResource -L $curlLib '-Wl,-Bstatic' '-l:libcurl.dll.a' `
         '-Wl,-Bdynamic' -lcomctl32 -lole32 -lshell32 -lgdi32 -luuid -o $engineExe
@@ -68,6 +78,7 @@ try {
     Copy-Item -LiteralPath $appPri -Destination $stage -Force
     Copy-Item -LiteralPath $compiledXaml.FullName -Destination $stage -Force
     Copy-Item -LiteralPath $engineExe -Destination (Join-Path $stage 'TermIDM.Engine.exe') -Force
+    Copy-Item -LiteralPath $bridgeDll -Destination (Join-Path $stage 'EngineBridge.dll') -Force
     Copy-Item -LiteralPath $versionPath -Destination (Join-Path $stage 'VERSION') -Force
     $toolchainBin = Split-Path -Parent $compilerCommand.Source
     $runtimeSources = @{
@@ -86,12 +97,14 @@ try {
     foreach ($archivePath in @($versionedZip, $stableZip)) { if ([IO.File]::Exists($archivePath)) { [IO.File]::Delete($archivePath) } }
     Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $versionedZip -CompressionLevel Optimal
     Copy-Item -LiteralPath $versionedZip -Destination $stableZip -Force
-    foreach ($oldFolder in Get-ChildItem -LiteralPath $releaseDir -Directory -Filter 'TermIDM-v*-Windows-x64' | Where-Object FullName -NE $stage) {
+    foreach ($oldFolder in Get-ChildItem -LiteralPath $releaseDir -Directory -Filter 'TermIDM-v*-Windows-x64' | Where-Object { $_.FullName -NE $stage }) {
         try { [IO.Directory]::Delete($oldFolder.FullName, $true) } catch { Write-Warning "Could not remove old build folder $($oldFolder.Name): $($_.Exception.Message)" }
     }
     foreach ($pattern in @('TermIDM-v*-Windows-x64.zip', 'TermIDM-Setup-v*-Windows-x64.exe')) {
-        Get-ChildItem -LiteralPath $releaseDir -File -Filter $pattern | Where-Object Name -NotIn @((Split-Path -Leaf $versionedZip), "TermIDM-Setup-v$version-Windows-x64.exe") |
-            ForEach-Object { try { [IO.File]::Delete($_.FullName) } catch { Write-Warning "Could not remove old release file $($_.Name): $($_.Exception.Message)" } }
+        $files = Get-ChildItem -LiteralPath $releaseDir -File -Filter $pattern | Where-Object { $_.Name -notin @((Split-Path -Leaf $versionedZip), "TermIDM-Setup-v$version-Windows-x64.exe") }
+        foreach ($file in $files) {
+            try { [IO.File]::Delete($file.FullName) } catch { Write-Warning "Could not remove old release file $($file.Name): $($_.Exception.Message)" }
+        }
     }
     Write-Host "Published unsigned TermIDM v$version to $versionedZip"
     Write-Host 'The ZIP contains only the self-contained WinUI app, native engine, and required runtime files.'

@@ -18,7 +18,7 @@ if (-not (Test-Path -LiteralPath $Compiler -PathType Leaf)) {
     if ($null -eq $resolved) { throw 'Inno Setup 6 is required. Install it, then rerun build-installer.ps1.' }
     $Compiler = $resolved.Source
 }
-foreach ($required in @('TermIDM.exe', 'TermIDM.Engine.exe', 'TermIDM.pri', 'App.xbf', 'MainWindow.xbf', 'assets\termidm.ico')) {
+foreach ($required in @('TermIDM.exe', 'EngineBridge.dll', 'TermIDM.pri', 'App.xbf', 'MainWindow.xbf', 'assets\termidm.ico')) {
     if (-not (Test-Path -LiteralPath (Join-Path $appFolder $required) -PathType Leaf)) {
         throw "Published app is incomplete: $required is missing from $appFolder. Run build.ps1 first."
     }

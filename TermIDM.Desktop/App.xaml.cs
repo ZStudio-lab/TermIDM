@@ -11,6 +11,17 @@ public partial class App : Application
     public App()
     {
         UnhandledException += (_, args) => WriteStartupLog(args.Exception);
+        // Additional global handlers to capture unexpected crashes and async exceptions.
+        TaskScheduler.UnobservedTaskException += (s, e) =>
+        {
+            try { File.AppendAllText(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TermIDM", "logs", "trace.log"), $"[{DateTimeOffset.Now:O}] UnobservedTaskException: {e.Exception}{Environment.NewLine}"); }
+            catch { }
+        };
+        AppDomain.CurrentDomain.UnhandledException += (s, e) =>
+        {
+            try { File.AppendAllText(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TermIDM", "logs", "trace.log"), $"[{DateTimeOffset.Now:O}] DomainUnhandled: {e.ExceptionObject}{Environment.NewLine}"); }
+            catch { }
+        };
         InitializeComponent();
     }
 
@@ -20,8 +31,6 @@ public partial class App : Application
         {
             mainWindow = new MainWindow();
             mainWindow.Activate();
-            if (mainWindow is MainWindow dashboard && !await dashboard.EnsureLicensedAsync())
-                Exit();
         }
         catch (Exception ex)
         {

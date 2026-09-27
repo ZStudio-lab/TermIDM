@@ -6,11 +6,11 @@ using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using WinRT.Interop;
@@ -22,6 +22,51 @@ namespace TermIDM.Desktop;
 
 public sealed partial class MainWindow : Window
 {
+    private const string EngineDllName = "EngineBridge.dll";
+
+    [DllImport(EngineDllName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern bool Engine_Initialize();
+
+    [DllImport(EngineDllName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern void Engine_Shutdown();
+
+    [DllImport(EngineDllName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern void Engine_SetCallbacks(
+        ProgressCallback progressCb,
+        StatusCallback statusCb,
+        LogCallback logCb,
+        IntPtr userData);
+
+    [DllImport(EngineDllName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
+    private static extern bool Engine_StartDownload(
+        string url,
+        string destinationFolder,
+        int maxConnections,
+        long maxSpeedBytesPerSec,
+        int timeoutSeconds);
+
+    [DllImport(EngineDllName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern bool Engine_PauseDownload();
+
+    [DllImport(EngineDllName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern bool Engine_ResumeDownload();
+
+    [DllImport(EngineDllName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern bool Engine_CancelDownload();
+
+    [DllImport(EngineDllName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern bool Engine_IsRunning();
+
+    private delegate void ProgressCallback(IntPtr userData, string fileName, long bytesDownloaded, long totalBytes, int activeConnections, double speedBps);
+    private delegate void StatusCallback(IntPtr userData, string status, string message);
+    private delegate void LogCallback(IntPtr userData, string message);
+
+    private static ProgressCallback _progressCallback;
+    private static StatusCallback _statusCallback;
+    private static LogCallback _logCallback;
+    private GCHandle _gcHandle;
+    private bool _isDisposed = false;
+
     private readonly ObservableCollection<DownloadItem> downloads = new();
     private readonly ObservableCollection<DownloadItem> visibleDownloads = new();
     private readonly DispatcherQueue uiQueue;
@@ -33,6 +78,8 @@ public sealed partial class MainWindow : Window
     private double defaultSpeedLimitMiB = 0;
     private int networkTimeoutSeconds = 90;
     private string defaultSaveFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
+    private DownloadItem? _currentDownload;
+    private DispatcherTimer? _progressTimer;
 
     public MainWindow()
     {
@@ -42,18 +89,17 @@ public sealed partial class MainWindow : Window
         uiQueue = DispatcherQueue.GetForCurrentThread();
         DownloadList.ItemsSource = visibleDownloads;
         Root.RequestedTheme = ElementTheme.Dark;
-        // Mica is supported by Windows 11. On Windows 10, avoid assigning a
-        // system backdrop and use the opaque dark surface instead.
         if (OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000))
             SystemBackdrop = new MicaBackdrop();
         else
-            Root.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 17, 19, 24));
+            Root.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 10, 12, 16));
         LoadSettings();
+        LoadHistory();
 
         var version = Assembly.GetExecutingAssembly().GetName().Version;
         var versionString = $"{version?.Major}.{version?.Minor}.{version?.Build}";
-        Title = $"TermIDM v{versionString} · Downloads";
-        VersionText.Text = $"Desktop download manager  ·  {versionString}";
+        Title = $"TermIDM v{versionString} \u00B7 Downloads";
+        VersionText.Text = $"Desktop download manager  \u00B7  {versionString}";
 
         var hwnd = WindowNative.GetWindowHandle(this);
         appWindow = AppWindow.GetFromWindowId(Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hwnd));
@@ -62,78 +108,161 @@ public sealed partial class MainWindow : Window
         Closed += (_, _) => Application.Current.Exit();
         SetFilter("All");
         UpdateSummary();
+
+        InitializeEngine();
     }
 
-    private DownloadItem? SelectedDownload => DownloadList.SelectedItem as DownloadItem;
-
-    public async Task<bool> EnsureLicensedAsync()
+    private void InitializeEngine()
     {
-        if (LicenseService.TryLoad(out var cached) && cached is not null) return true;
-        while (true)
+        try
         {
-            var key = new TextBox
-            {
-                PlaceholderText = "Paste your encrypted string or signed key",
-                AcceptsReturn = true,
-                TextWrapping = TextWrapping.Wrap,
-                MinHeight = 76
-            };
-            var machineId = new TextBlock
-            {
-                Text = LicenseService.MachineId,
-                FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Consolas"),
-                TextWrapping = TextWrapping.WrapWholeWords,
-                IsTextSelectionEnabled = true
-            };
-            var copyId = new Button { Content = "Copy device ID", HorizontalAlignment = HorizontalAlignment.Left };
-            copyId.Click += (_, _) =>
-            {
-                var package = new DataPackage();
-                package.SetText(LicenseService.MachineId);
-                Clipboard.SetContent(package);
-            };
-            var openPortal = new Button { Content = "Open license portal", HorizontalAlignment = HorizontalAlignment.Left };
-            openPortal.Click += (_, _) =>
-            {
-                try { Process.Start(new ProcessStartInfo("https://zstudio-lab.github.io/TermIDM/") { UseShellExecute = true }); }
-                catch (Exception ex) { StatusText.Text = $"Could not open the license page: {ex.Message}"; }
-            };
-            var body = new StackPanel { Spacing = 10, MaxWidth = 500 };
-            body.Children.Add(new TextBlock { Text = "Device activation", FontSize = 20, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
-            body.Children.Add(new TextBlock { Text = "TermIDM is free to use. Paste the encrypted string generated for this device, or a signed activation key.", TextWrapping = TextWrapping.Wrap });
-            body.Children.Add(new TextBlock { Text = "Device ID", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
-            body.Children.Add(machineId);
-            body.Children.Add(copyId);
-            body.Children.Add(openPortal);
-            body.Children.Add(new TextBlock { Text = "Encrypted string or activation key", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
-            body.Children.Add(key);
-            if (!await ShowSubWindowAsync("Activate TermIDM", body, "Activate", "Exit", 590, 560)) return false;
-            if (!LicenseService.Validate(key.Text.Trim(), out var message))
-            {
-                if (!await ShowSubWindowAsync("Invalid Key", new TextBlock
-                {
-                    Text = message,
-                    TextWrapping = TextWrapping.Wrap,
-                    FontSize = 14
-                }, "Try Again", "Exit", 480, 220)) return false;
-                continue;
-            }
+            _progressCallback = OnEngineProgress;
+            _statusCallback = OnEngineStatus;
+            _logCallback = OnEngineLog;
+            _gcHandle = GCHandle.Alloc(this);
+
+            Engine_SetCallbacks(_progressCallback, _statusCallback, _logCallback, (IntPtr)_gcHandle);
+            Engine_Initialize();
+            Log("Native engine initialized successfully.");
+        }
+        catch (Exception ex)
+        {
+            Log($"Failed to initialize native engine: {ex}");
+        }
+    }
+
+    private void OnEngineProgress(IntPtr userData, string fileName, long bytesDownloaded, long totalBytes, int activeConnections, double speedBps)
+    {
+        if (_isDisposed) return;
+        
+        uiQueue.TryEnqueue(() =>
+        {
             try
             {
-                LicenseService.Save(key.Text.Trim());
-                StatusText.Text = message;
-                return true;
+                if (_isDisposed) return;
+
+                if (_currentDownload != null)
+                {
+                    _currentDownload.FileName = fileName;
+                    _currentDownload.BytesDownloaded = bytesDownloaded;
+                    _currentDownload.TotalBytes = totalBytes;
+                    _currentDownload.Percent = totalBytes > 0 ? Math.Clamp(bytesDownloaded * 100.0 / totalBytes, 0, 100) : 0;
+                    _currentDownload.SpeedBytesPerSecond = (long)speedBps;
+                    _currentDownload.ActiveConnections = activeConnections;
+                    if (_currentDownload.Status != "Paused")
+                        _currentDownload.Status = "Downloading";
+                    _currentDownload.Details = FormatSpeed(speedBps);
+                    
+                    StartProgressTimer();
+                }
+                UpdateSummary();
             }
             catch (Exception ex)
             {
-                if (!await ShowSubWindowAsync("Activation could not be saved", new TextBlock
-                {
-                    Text = ex.Message,
-                    TextWrapping = TextWrapping.Wrap
-                }, "Try Again", "Exit", 480, 220)) return false;
+                Log($"Error in OnEngineProgress: {ex}");
             }
-        }
+        });
     }
+
+    private void OnEngineStatus(IntPtr userData, string status, string message)
+    {
+        if (_isDisposed) return;
+        
+        uiQueue.TryEnqueue(() =>
+        {
+            try
+            {
+                if (_isDisposed) return;
+
+                StatusText.Text = message;
+                Log($"Engine status: {status} - {message}");
+
+                if (_currentDownload != null)
+                {
+                    switch (status)
+                    {
+                        case "Completed":
+                            _currentDownload.Status = "Completed";
+                            _currentDownload.Percent = 100;
+                            _currentDownload.SpeedBytesPerSecond = 0;
+                            _currentDownload.Details = "Download completed.";
+                            SaveToHistory(_currentDownload);
+                            _currentDownload = null;
+                            StopProgressTimer();
+                            break;
+                        case "Cancelled":
+                            _currentDownload.Status = "Cancelled";
+                            _currentDownload.Details = "Download cancelled.";
+                            SaveToHistory(_currentDownload);
+                            _currentDownload = null;
+                            StopProgressTimer();
+                            break;
+                        case "Error":
+                            _currentDownload.Status = "Error";
+                            _currentDownload.Details = message;
+                            SaveToHistory(_currentDownload);
+                            _currentDownload = null;
+                            StopProgressTimer();
+                            break;
+                        case "Paused":
+                            if (_currentDownload.Status == "Downloading")
+                                _currentDownload.Status = "Paused";
+                            break;
+                        case "Resumed":
+                            if (_currentDownload.Status == "Paused")
+                                _currentDownload.Status = "Downloading";
+                            break;
+                    }
+                }
+
+                RefreshVisibleDownloads();
+                UpdateSummary();
+            }
+            catch (Exception ex)
+            {
+                Log($"Error in OnEngineStatus: {ex}");
+            }
+        });
+    }
+
+    private void OnEngineLog(IntPtr userData, string message)
+    {
+        Log(message);
+    }
+
+    private void StartProgressTimer()
+    {
+        if (_progressTimer != null) return;
+        
+        _progressTimer = new DispatcherTimer();
+        _progressTimer.Interval = TimeSpan.FromMilliseconds(1000);
+        _progressTimer.Tick += (s, e) =>
+        {
+            if (_currentDownload == null || _currentDownload.Status is "Completed" or "Cancelled" or "Error")
+            {
+                StopProgressTimer();
+                return;
+            }
+            var temp = _currentDownload.SpeedBytesPerSecond;
+            _currentDownload.SpeedBytesPerSecond = 0;
+            _currentDownload.SpeedBytesPerSecond = temp;
+            
+            var tempPercent = _currentDownload.Percent;
+            _currentDownload.Percent = 0;
+            _currentDownload.Percent = tempPercent;
+            
+            UpdateSummary();
+        };
+        _progressTimer.Start();
+    }
+
+    private void StopProgressTimer()
+    {
+        _progressTimer?.Stop();
+        _progressTimer = null;
+    }
+
+    private DownloadItem? SelectedDownload => DownloadList.SelectedItem as DownloadItem;
 
     private async void AddUrl_Click(object sender, RoutedEventArgs e)
     {
@@ -150,7 +279,7 @@ public sealed partial class MainWindow : Window
         folderRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         folderRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         folderRow.Children.Add(folder);
-        var browse = new Button { Content = "Browse…", MinWidth = 92 };
+        var browse = new Button { Content = "Browse\u2026", MinWidth = 92 };
         Grid.SetColumn(browse, 1);
         folderRow.Children.Add(browse);
         browse.Click += async (_, _) =>
@@ -174,6 +303,7 @@ public sealed partial class MainWindow : Window
         form.Children.Add(speedLimit);
         form.Children.Add(Field("Description", description));
         if (!await ShowSubWindowAsync("Add New Download", form, "Download Now", "Cancel", 560, 650)) return;
+        await Task.Yield();
 
         if (!Uri.TryCreate(url.Text.Trim(), UriKind.Absolute, out var uri) ||
             (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
@@ -197,8 +327,7 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        var fileName = Path.GetFileName(Uri.UnescapeDataString(uri.AbsolutePath));
-        if (string.IsNullOrWhiteSpace(fileName)) fileName = "download";
+        var fileName = "download";
         var categoryName = category.SelectedItem?.ToString() ?? "Auto";
         var connectionLimit = int.TryParse(connections.SelectedItem?.ToString(), out var parsedConnections)
             ? Math.Clamp(parsedConnections, 1, 128) : defaultConnectionLimit;
@@ -212,8 +341,9 @@ public sealed partial class MainWindow : Window
         item.PropertyChanged += DownloadItem_PropertyChanged;
         downloads.Insert(0, item);
         RefreshVisibleDownloads();
-        StatusText.Text = $"Starting {fileName}…";
-        _ = RunDownloadAsync(item, connectionLimit);
+        StatusText.Text = "Starting download...";
+        _currentDownload = item;
+        RunDownload(item, connectionLimit);
     }
 
     private static StackPanel Field(string label, UIElement control)
@@ -231,7 +361,7 @@ public sealed partial class MainWindow : Window
         var shell = new Grid
         {
             Padding = new Thickness(22),
-            Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 23, 25, 31)),
+            Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 17, 20, 28)),
             RequestedTheme = ElementTheme.Dark
         };
         shell.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
@@ -255,9 +385,9 @@ public sealed partial class MainWindow : Window
             {
                 Content = primaryText,
                 MinWidth = 124,
-                Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 8, 127, 193)),
+                Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 59, 130, 246)),
                 Foreground = new SolidColorBrush(Microsoft.UI.Colors.White),
-                BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 22, 139, 208))
+                BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 37, 99, 235))
             };
             primary.Click += (_, _) => { completion.TrySetResult(true); window?.Close(); };
             buttons.Children.Add(primary);
@@ -292,204 +422,93 @@ public sealed partial class MainWindow : Window
         await dialog.ShowAsync();
     }
 
-    private async Task RunDownloadAsync(DownloadItem item, int connectionLimit)
+    private void RunDownload(DownloadItem item, int connectionLimit)
     {
-        var engine = Path.Combine(AppContext.BaseDirectory, "TermIDM.Engine.exe");
-        if (!File.Exists(engine))
-        {
-            item.Status = "Error";
-            item.Details = "TermIDM.Engine.exe is missing beside the desktop app.";
-            StatusText.Text = item.Details;
-            return;
-        }
-
-        var start = new ProcessStartInfo(engine)
-        {
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            RedirectStandardInput = true,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            StandardOutputEncoding = Encoding.UTF8,
-            StandardErrorEncoding = Encoding.UTF8,
-            WorkingDirectory = AppContext.BaseDirectory
-        };
-        start.ArgumentList.Add("--engine");
-        start.ArgumentList.Add(item.Url);
-        start.ArgumentList.Add(item.Folder);
-        start.ArgumentList.Add(connectionLimit.ToString(CultureInfo.InvariantCulture));
-        start.ArgumentList.Add(item.SpeedLimitBytesPerSecond.ToString(CultureInfo.InvariantCulture));
-        start.ArgumentList.Add(item.NetworkTimeoutSeconds.ToString(CultureInfo.InvariantCulture));
-
         try
         {
-            using var process = new Process { StartInfo = start, EnableRaisingEvents = true };
-            item.EngineProcess = process;
             item.Status = "Connecting";
-            process.Start();
-            var stderrTask = process.StandardError.ReadToEndAsync();
-            string? engineError = null;
-            string? line;
-            while ((line = await process.StandardOutput.ReadLineAsync()) is not null)
-            {
-                if (line.StartsWith("ERROR\t", StringComparison.Ordinal)) engineError = line[6..];
-                if (line.StartsWith("PROGRESS\t", StringComparison.Ordinal))
-                {
-                    if (item.QueueTelemetry(line))
-                    {
-                        uiQueue.TryEnqueue(() =>
-                        {
-                            var latest = item.TakeTelemetry();
-                            if (latest is not null) HandleEngineMessage(item, latest);
-                        });
-                    }
-                }
-                else uiQueue.TryEnqueue(() => HandleEngineMessage(item, line));
-            }
+            bool started = Engine_StartDownload(
+                item.Url,
+                item.Folder,
+                connectionLimit,
+                item.SpeedLimitBytesPerSecond,
+                item.NetworkTimeoutSeconds);
 
-            await process.WaitForExitAsync();
-            var stderr = await stderrTask;
-            await EnqueueUiAsync(() =>
+            if (!started)
             {
-                if (process.ExitCode == 0)
-                {
-                    item.Status = "Completed";
-                    item.Percent = 100;
-                    item.SpeedBytesPerSecond = 0;
-                    item.Details = "Download completed.";
-                }
-                else if (item.Status != "Cancelled")
-                {
-                    item.Status = "Error";
-                    // Preserve the native engine's concrete Win32/libcurl
-                    // diagnostic. A generic STATUS line may already be set,
-                    // but stderr identifies why the final operation failed.
-                    item.Details = !string.IsNullOrWhiteSpace(stderr)
-                        ? stderr.Trim()
-                        : string.IsNullOrWhiteSpace(item.Details)
-                            ? $"Engine exited with code {process.ExitCode}."
-                            : item.Details;
-                }
-                item.EngineProcess = null;
+                item.Status = "Error";
+                item.Details = "Failed to start download. Another download may already be in progress.";
                 StatusText.Text = item.Details;
-                RefreshVisibleDownloads();
-                UpdateSummary();
-            });
+                _currentDownload = null;
+            }
         }
         catch (Exception ex)
         {
-            await EnqueueUiAsync(() =>
-            {
-                item.Status = "Error";
-                item.Details = ex.Message;
-                StatusText.Text = ex.Message;
-                item.EngineProcess = null;
-                RefreshVisibleDownloads();
-            });
+            item.Status = "Error";
+            item.Details = ex.Message;
+            StatusText.Text = ex.Message;
+            _currentDownload = null;
         }
     }
 
-    private Task EnqueueUiAsync(Action action)
+    private void Pause_Click(object sender, RoutedEventArgs e)
     {
-        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        if (!uiQueue.TryEnqueue(() =>
+        var item = SelectedDownload;
+        if (item is null) { StatusText.Text = "Select a download first."; return; }
+        if (Engine_PauseDownload())
         {
-            try { action(); completion.SetResult(); }
-            catch (Exception ex) { completion.SetException(ex); }
-        })) completion.SetException(new InvalidOperationException("The UI dispatcher is no longer available."));
-        return completion.Task;
-    }
-
-    private void HandleEngineMessage(DownloadItem item, string line)
-    {
-        var fields = line.Split('\t');
-        if (fields.Length == 0) return;
-        switch (fields[0])
-        {
-            case "STATUS" when fields.Length >= 2:
-                item.Details = fields[1];
-                StatusText.Text = fields[1];
-                const string fileNamePrefix = "File name: ";
-                if (fields[1].StartsWith(fileNamePrefix, StringComparison.OrdinalIgnoreCase))
-                    item.FileName = fields[1][fileNamePrefix.Length..];
-                if (fields[1].Contains("paused", StringComparison.OrdinalIgnoreCase)) item.Status = "Paused";
-                else if (fields[1].StartsWith("Downloading", StringComparison.OrdinalIgnoreCase)) item.Status = "Downloading";
-                break;
-            case "ERROR" when fields.Length >= 2:
-                item.Status = "Error";
-                item.Details = fields[1];
-                StatusText.Text = fields[1];
-                break;
-            case "PROGRESS" when fields.Length >= 5:
-                if (!long.TryParse(fields[1], out var completed) || !long.TryParse(fields[2], out var total)) return;
-                var now = Stopwatch.GetTimestamp();
-                if (item.LastProgressBytes >= 0 && item.LastProgressTimestamp != 0)
-                {
-                    var elapsed = (now - item.LastProgressTimestamp) / (double)Stopwatch.Frequency;
-                    if (elapsed > 0) item.SpeedBytesPerSecond = Math.Max(0, (completed - item.LastProgressBytes) / elapsed);
-                }
-                item.LastProgressBytes = completed;
-                item.LastProgressTimestamp = now;
-                item.TotalBytes = total;
-                item.BytesDownloaded = completed;
-                item.Percent = total > 0 ? Math.Clamp(completed * 100.0 / total, 0, 100) : 0;
-                item.ActiveConnections = fields.Skip(5).Count(part =>
-                    int.TryParse(part.Split(',')[0], out var state) && state is 1 or 2);
-                // Progress is reported frequently. Only transition into the
-                // Downloading state once; assigning this on every telemetry
-                // tick used to rebuild the bound list continuously and could
-                // destabilize the WinUI visual tree during long downloads.
-                if (item.Status is not ("Downloading" or "Paused")) item.Status = "Downloading";
-                break;
-            case "DONE":
-                item.Status = "Completed";
-                item.Details = "Download completed.";
-                break;
-            case "CANCELLED":
-                item.Status = "Cancelled";
-                item.Details = "Download cancelled. Checkpointed ranges will resume on retry when supported by the server.";
-                break;
-            case "FAILED":
-                if (item.Status != "Error") item.Status = "Error";
-                break;
+            item.Status = "Pausing";
+            RefreshVisibleDownloads();
         }
-        UpdateSummary();
     }
-
-    private void Pause_Click(object sender, RoutedEventArgs e) => SendControl("pause");
 
     private void Resume_Click(object sender, RoutedEventArgs e)
     {
         var item = SelectedDownload;
         if (item is null) { StatusText.Text = "Select a download first."; return; }
-        if (item.EngineProcess is { HasExited: false }) SendControl("resume");
+        if (item.Status is "Paused" or "Pausing")
+        {
+            if (Engine_ResumeDownload())
+            {
+                item.Status = "Downloading";
+                _currentDownload = item;
+                RefreshVisibleDownloads();
+            }
+        }
         else if (item.Status is "Cancelled" or "Error")
         {
-            item.LastProgressBytes = -1;
-            item.SpeedBytesPerSecond = 0;
-            _ = RunDownloadAsync(item, item.ConnectionLimit);
+            _currentDownload = item;
+            RunDownload(item, item.ConnectionLimit);
         }
         else StatusText.Text = "Select a paused or interrupted download.";
     }
 
-    private void Stop_Click(object sender, RoutedEventArgs e) => SendControl("cancel");
-
-    private void SendControl(string command)
+    private void Stop_Click(object sender, RoutedEventArgs e)
     {
         var item = SelectedDownload;
-        if (item?.EngineProcess is not { HasExited: false } process)
+        if (item is null) { StatusText.Text = "Select a download first."; return; }
+        if (Engine_CancelDownload())
         {
-            StatusText.Text = "Select an active download first.";
-            return;
-        }
-        try
-        {
-            process.StandardInput.WriteLine(command);
-            process.StandardInput.Flush();
-            item.Status = command switch { "pause" => "Pausing", "resume" => "Downloading", _ => "Cancelling" };
+            item.Status = "Cancelling";
             RefreshVisibleDownloads();
         }
-        catch (Exception ex) { StatusText.Text = $"Could not send {command} command: {ex.Message}"; }
+    }
+
+    private void ClearList_Click(object sender, RoutedEventArgs e)
+    {
+        int count = 0;
+        for (int i = downloads.Count - 1; i >= 0; i--)
+        {
+            var item = downloads[i];
+            if (item.Status is "Completed" or "Cancelled" or "Error")
+            {
+                downloads.RemoveAt(i);
+                count++;
+            }
+        }
+        RefreshVisibleDownloads();
+        UpdateSummary();
+        StatusText.Text = count > 0 ? $"Cleared {count} completed download(s)." : "No completed downloads to clear.";
     }
 
     private void FilterAll_Click(object sender, RoutedEventArgs e) => SetFilter("All");
@@ -504,52 +523,157 @@ public sealed partial class MainWindow : Window
     private async void Options_Click(object sender, RoutedEventArgs e)
     {
         var tabs = new TabView { IsAddTabButtonVisible = false, CanDragTabs = false, CanReorderTabs = false };
-        tabs.TabItems.Add(new TabViewItem
+
+        // General Tab
+        var generalPanel = new StackPanel { Spacing = 16, Margin = new Thickness(16) };
+        
+        var themePanel = new StackPanel { Spacing = 8 };
+        themePanel.Children.Add(new TextBlock { Text = "Theme", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Microsoft.UI.Colors.White) });
+        var themeCombo = new ComboBox { Width = 200, SelectedIndex = 0 };
+        themeCombo.Items.Add("Dark");
+        themeCombo.Items.Add("Light");
+        themeCombo.Items.Add("System");
+        themeCombo.SelectionChanged += (_, _) =>
         {
-            Header = "General",
-            Content = new TextBlock
+            StatusText.Text = $"Theme set to: {themeCombo.SelectedItem}";
+        };
+        themePanel.Children.Add(themeCombo);
+        generalPanel.Children.Add(themePanel);
+
+        var startupPanel = new StackPanel { Spacing = 8 };
+        startupPanel.Children.Add(new TextBlock { Text = "Startup", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Microsoft.UI.Colors.White) });
+        var startWithWindows = new ToggleSwitch { Header = "Start with Windows", OnContent = "Enabled", OffContent = "Disabled" };
+        startWithWindows.Toggled += (_, _) =>
+        {
+            try
             {
-                Text = "TermIDM keeps the download engine in a separate native process. Settings are stored locally for this Windows user.",
-                TextWrapping = TextWrapping.Wrap,
-                Margin = new Thickness(16)
+                if (startWithWindows.IsOn)
+                {
+                    using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true);
+                    if (key != null)
+                    {
+                        key.SetValue("TermIDM", $"\"{System.Reflection.Assembly.GetExecutingAssembly().Location}\"");
+                    }
+                    StatusText.Text = "TermIDM will start with Windows.";
+                }
+                else
+                {
+                    using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true);
+                    if (key != null)
+                    {
+                        key.DeleteValue("TermIDM", false);
+                    }
+                    StatusText.Text = "TermIDM will not start with Windows.";
+                }
             }
-        });
+            catch (Exception ex)
+            {
+                StatusText.Text = $"Startup setting failed: {ex.Message}";
+            }
+        };
+        startupPanel.Children.Add(startWithWindows);
+        generalPanel.Children.Add(startupPanel);
+        tabs.TabItems.Add(new TabViewItem { Header = "General", Content = generalPanel });
+
+        // Connection Tab
         var connectionLimitBox = new NumberBox
         {
-            Header = "Maximum connections per download (1–128)",
+            Header = "Maximum connections per download (1\u2013128)",
             Value = defaultConnectionLimit,
             Minimum = 1,
             Maximum = 128,
             SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Compact,
             Margin = new Thickness(16)
         };
-        var speedLimitBox = new NumberBox { Header = "Default per-download speed limit (MiB/s, 0 = unlimited)", Value = defaultSpeedLimitMiB, Minimum = 0, Maximum = 1_000_000, SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Compact, Margin = new Thickness(16) };
-        var timeoutBox = new NumberBox { Header = "Network connect timeout (seconds)", Value = networkTimeoutSeconds, Minimum = 5, Maximum = 600, SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Compact, Margin = new Thickness(16) };
+        var speedLimitBox = new NumberBox { Header = "Default speed limit (MiB/s, 0 = unlimited)", Value = defaultSpeedLimitMiB, Minimum = 0, Maximum = 1_000_000, SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Compact, Margin = new Thickness(16) };
+        var timeoutBox = new NumberBox { Header = "Connect timeout (seconds)", Value = networkTimeoutSeconds, Minimum = 5, Maximum = 600, SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Compact, Margin = new Thickness(16) };
+        var retryBox = new NumberBox { Header = "Max retry attempts", Value = 3, Minimum = 1, Maximum = 10, SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Compact, Margin = new Thickness(16) };
         var connectionSettings = new StackPanel { Spacing = 12 };
         connectionSettings.Children.Add(connectionLimitBox);
         connectionSettings.Children.Add(speedLimitBox);
         connectionSettings.Children.Add(timeoutBox);
+        connectionSettings.Children.Add(retryBox);
         tabs.TabItems.Add(new TabViewItem { Header = "Connection", Content = connectionSettings });
-        var saveFolderBox = new TextBox { Text = defaultSaveFolder, PlaceholderText = "Default download folder", MinWidth = 360 };
+
+        // Downloads Tab
+        var saveFolderBox = new TextBox { Text = defaultSaveFolder, PlaceholderText = "Default download folder", MinWidth = 400 };
         var folderSettings = new StackPanel { Spacing = 12, Margin = new Thickness(16) };
-        folderSettings.Children.Add(new TextBlock { Text = "Default save folder" });
+        folderSettings.Children.Add(new TextBlock { Text = "Default save folder", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Microsoft.UI.Colors.White) });
         folderSettings.Children.Add(saveFolderBox);
-        var browseDefault = new Button { Content = "Browse…", HorizontalAlignment = HorizontalAlignment.Left };
+        var browseDefault = new Button { Content = "Browse\u2026", HorizontalAlignment = HorizontalAlignment.Left };
         browseDefault.Click += async (_, _) =>
         {
             try { var picker = new FolderPicker(); picker.FileTypeFilter.Add("*"); InitializeWithWindow.Initialize(picker, activeSubWindowHandle ?? WindowNative.GetWindowHandle(this)); var selected = await picker.PickSingleFolderAsync(); if (selected is not null) saveFolderBox.Text = selected.Path; }
             catch (Exception ex) { StatusText.Text = $"Folder picker failed: {ex.Message}"; }
         };
         folderSettings.Children.Add(browseDefault);
+
+        folderSettings.Children.Add(new TextBlock { Text = "Download History", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Microsoft.UI.Colors.White), Margin = new Thickness(0,16,0,0) });
+        var historyPanel = new StackPanel { Spacing = 8 };
+        var historyInfo = new TextBlock { Text = $"History file: {HistoryPath}", FontSize = 10, Foreground = new SolidColorBrush(Microsoft.UI.Colors.Gray), TextWrapping = TextWrapping.Wrap };
+        historyPanel.Children.Add(historyInfo);
+        var clearHistoryBtn = new Button { Content = "Clear Download History", HorizontalAlignment = HorizontalAlignment.Left };
+        clearHistoryBtn.Click += (_, _) =>
+        {
+            try
+            {
+                if (File.Exists(HistoryPath))
+                {
+                    File.Delete(HistoryPath);
+                    StatusText.Text = "Download history cleared.";
+                }
+                else
+                {
+                    StatusText.Text = "No download history found.";
+                }
+            }
+            catch (Exception ex)
+            {
+                StatusText.Text = $"Failed to clear history: {ex.Message}";
+            }
+        };
+        historyPanel.Children.Add(clearHistoryBtn);
+        folderSettings.Children.Add(historyPanel);
         tabs.TabItems.Add(new TabViewItem { Header = "Downloads", Content = folderSettings });
-        if (await ShowSubWindowAsync("Global Options", tabs, "Save", "Cancel", 660, 620))
+
+        // About Tab
+        var aboutPanel = new StackPanel { Spacing = 12, Margin = new Thickness(16) };
+        aboutPanel.Children.Add(new TextBlock { Text = "TermIDM", FontSize = 20, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = new SolidColorBrush(Microsoft.UI.Colors.White) });
+        aboutPanel.Children.Add(new TextBlock { Text = $"Version: {Assembly.GetExecutingAssembly().GetName().Version}", Foreground = new SolidColorBrush(Microsoft.UI.Colors.Gray), FontSize = 12 });
+        aboutPanel.Children.Add(new TextBlock { Text = "Integrated native download engine", Foreground = new SolidColorBrush(Microsoft.UI.Colors.Gray), FontSize = 12 });
+        aboutPanel.Children.Add(new TextBlock { Text = "Built with WinUI 3 and libcurl", Foreground = new SolidColorBrush(Microsoft.UI.Colors.Gray), FontSize = 12 });
+        aboutPanel.Children.Add(new TextBlock { Text = "", Foreground = new SolidColorBrush(Microsoft.UI.Colors.Gray), FontSize = 8 });
+        aboutPanel.Children.Add(new TextBlock { Text = "Engine Features:", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Microsoft.UI.Colors.White), FontSize = 12 });
+        aboutPanel.Children.Add(new TextBlock { Text = "- HTTP/HTTPS with range request support", Foreground = new SolidColorBrush(Microsoft.UI.Colors.Gray), FontSize = 11 });
+        aboutPanel.Children.Add(new TextBlock { Text = "- Multi-threaded segmented downloading", Foreground = new SolidColorBrush(Microsoft.UI.Colors.Gray), FontSize = 11 });
+        aboutPanel.Children.Add(new TextBlock { Text = "- Browser-like stealth headers", Foreground = new SolidColorBrush(Microsoft.UI.Colors.Gray), FontSize = 11 });
+        aboutPanel.Children.Add(new TextBlock { Text = "- Automatic retry with exponential backoff", Foreground = new SolidColorBrush(Microsoft.UI.Colors.Gray), FontSize = 11 });
+        aboutPanel.Children.Add(new TextBlock { Text = "- Content-Disposition filename detection", Foreground = new SolidColorBrush(Microsoft.UI.Colors.Gray), FontSize = 11 });
+        aboutPanel.Children.Add(new TextBlock { Text = "- Pause / Resume / Cancel support", Foreground = new SolidColorBrush(Microsoft.UI.Colors.Gray), FontSize = 11 });
+        aboutPanel.Children.Add(new TextBlock { Text = "- Speed limiting", Foreground = new SolidColorBrush(Microsoft.UI.Colors.Gray), FontSize = 11 });
+        aboutPanel.Children.Add(new TextBlock { Text = "", Foreground = new SolidColorBrush(Microsoft.UI.Colors.Gray), FontSize = 8 });
+        aboutPanel.Children.Add(new TextBlock { Text = "UI Features:", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Microsoft.UI.Colors.White), FontSize = 12 });
+        aboutPanel.Children.Add(new TextBlock { Text = "- Real-time progress and speed display", Foreground = new SolidColorBrush(Microsoft.UI.Colors.Gray), FontSize = 11 });
+        aboutPanel.Children.Add(new TextBlock { Text = "- Download history persistence (CSV)", Foreground = new SolidColorBrush(Microsoft.UI.Colors.Gray), FontSize = 11 });
+        aboutPanel.Children.Add(new TextBlock { Text = "- Category and status filtering", Foreground = new SolidColorBrush(Microsoft.UI.Colors.Gray), FontSize = 11 });
+        aboutPanel.Children.Add(new TextBlock { Text = "- Dark Fluent UI with Mica backdrop", Foreground = new SolidColorBrush(Microsoft.UI.Colors.Gray), FontSize = 11 });
+        aboutPanel.Children.Add(new TextBlock { Text = "- Settings with theme and startup options", Foreground = new SolidColorBrush(Microsoft.UI.Colors.Gray), FontSize = 11 });
+        aboutPanel.Children.Add(new TextBlock { Text = "", Foreground = new SolidColorBrush(Microsoft.UI.Colors.Gray), FontSize = 8 });
+        aboutPanel.Children.Add(new TextBlock { Text = "Tech Stack:", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Microsoft.UI.Colors.White), FontSize = 12 });
+        aboutPanel.Children.Add(new TextBlock { Text = "- C# / .NET 8 / WinUI 3 (Windows App SDK 2.5)", Foreground = new SolidColorBrush(Microsoft.UI.Colors.Gray), FontSize = 11 });
+        aboutPanel.Children.Add(new TextBlock { Text = "- C++17 native engine via P/Invoke bridge", Foreground = new SolidColorBrush(Microsoft.UI.Colors.Gray), FontSize = 11 });
+        aboutPanel.Children.Add(new TextBlock { Text = "- libcurl for HTTP transfers", Foreground = new SolidColorBrush(Microsoft.UI.Colors.Gray), FontSize = 11 });
+        aboutPanel.Children.Add(new TextBlock { Text = "- ASP.NET Core license API (separate)", Foreground = new SolidColorBrush(Microsoft.UI.Colors.Gray), FontSize = 11 });
+        tabs.TabItems.Add(new TabViewItem { Header = "About", Content = aboutPanel });
+
+        if (await ShowSubWindowAsync("Settings", tabs, "Save", "Cancel", 700, 680))
         {
             defaultConnectionLimit = (int)Math.Clamp(connectionLimitBox.Value, 1, 128);
             defaultSpeedLimitMiB = Math.Max(0, speedLimitBox.Value);
             networkTimeoutSeconds = (int)Math.Clamp(timeoutBox.Value, 5, 600);
             defaultSaveFolder = string.IsNullOrWhiteSpace(saveFolderBox.Text) ? defaultSaveFolder : saveFolderBox.Text.Trim();
             SaveSettings();
-            StatusText.Text = $"Options saved · {defaultConnectionLimit} connections · {(defaultSpeedLimitMiB == 0 ? "unlimited" : $"{defaultSpeedLimitMiB:0.##} MiB/s")}.";
+            StatusText.Text = $"Settings saved \u00B7 {defaultConnectionLimit} connections \u00B7 {(defaultSpeedLimitMiB == 0 ? "unlimited" : $"{defaultSpeedLimitMiB:0.##} MiB/s")}.";
         }
     }
 
@@ -560,13 +684,13 @@ public sealed partial class MainWindow : Window
         {
             list.Items.Add(new TextBlock
             {
-                Text = $"{item.FileName}    ·    {item.Status}    ·    {item.SizeText}",
+                Text = $"{item.FileName}    \u00B7    {item.Status}    \u00B7    {item.SizeText}",
                 TextTrimming = TextTrimming.CharacterEllipsis,
                 Margin = new Thickness(5)
             });
         }
         var content = new StackPanel { Spacing = 8 };
-        content.Children.Add(new TextBlock { Text = "TermIDM · Download Queue Manager", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
+        content.Children.Add(new TextBlock { Text = "TermIDM \u00B7 Download Queue Manager", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
         content.Children.Add(list);
         await ShowSubWindowAsync("Scheduler", content, null, "Close", 700, 440);
     }
@@ -636,9 +760,9 @@ public sealed partial class MainWindow : Window
     {
         var active = downloads.Count(item => item.Status is not ("Completed" or "Cancelled" or "Error"));
         AllCount.Text = downloads.Count.ToString(CultureInfo.InvariantCulture);
-        DownloadingCount.Text = downloads.Count(item => item.Status is "Connecting" or "Downloading" or "Queued" or "Pausing" or "Cancelling").ToString(CultureInfo.InvariantCulture);
+        DownloadingCount.Text = downloads.Count(item => item.Status is "Connecting" or "Downloading" or "Queued").ToString(CultureInfo.InvariantCulture);
         CompletedCount.Text = downloads.Count(item => item.Status == "Completed").ToString(CultureInfo.InvariantCulture);
-        PausedCount.Text = downloads.Count(item => item.Status == "Paused").ToString(CultureInfo.InvariantCulture);
+        PausedCount.Text = downloads.Count(item => item.Status == "Paused" || item.Status == "Pausing").ToString(CultureInfo.InvariantCulture);
         ActiveSummary.Text = $"{active} active download{(active == 1 ? "" : "s")}";
         TotalSpeedText.Text = FormatSpeed(downloads.Sum(item => item.SpeedBytesPerSecond));
     }
@@ -649,24 +773,115 @@ public sealed partial class MainWindow : Window
 
     private async void AppWindow_Closing(AppWindow sender, AppWindowClosingEventArgs e)
     {
+        Log("AppWindow_Closing invoked");
         if (allowClose) return;
-        var active = downloads.Where(item => item.EngineProcess is { HasExited: false }).ToList();
+        var active = downloads.Where(item => item.Status is "Downloading" or "Connecting" or "Paused").ToList();
         if (active.Count == 0) return;
         e.Cancel = true;
-        StatusText.Text = "Stopping active downloads safely before exit…";
-        foreach (var item in active)
-        {
-            try { item.EngineProcess!.StandardInput.WriteLine("cancel"); item.EngineProcess.StandardInput.Flush(); }
-            catch { }
-        }
-        await Task.WhenAll(active.Select(async item =>
-        {
-            try { await item.EngineProcess!.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(20)); }
-            catch (TimeoutException) { try { item.EngineProcess!.Kill(entireProcessTree: true); } catch { } }
-            catch { }
-        }));
+        StatusText.Text = "Stopping active downloads safely before exit\u2026";
+        Log($"{active.Count} active downloads, attempting graceful shutdown");
+        Engine_CancelDownload();
+        await Task.Delay(2000);
         allowClose = true;
+        Log("AllowClose set true; calling Close()");
         Close();
+    }
+
+    // Download history persistence
+    private string HistoryPath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TermIDM", "download-history.csv");
+
+    private void SaveToHistory(DownloadItem item)
+    {
+        try
+        {
+            var dir = Path.GetDirectoryName(HistoryPath);
+            if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+            
+            bool fileExists = File.Exists(HistoryPath);
+            using var writer = new StreamWriter(HistoryPath, true, Encoding.UTF8);
+            if (!fileExists)
+            {
+                writer.WriteLine("Timestamp,FileName,Url,Folder,Category,Status,SizeBytes");
+            }
+            writer.WriteLine($"{DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss},{EscapeCsv(item.FileName)},{EscapeCsv(item.Url)},{EscapeCsv(item.Folder)},{item.Category},{item.Status},{item.TotalBytes}");
+        }
+        catch (Exception ex)
+        {
+            Log($"Failed to save history: {ex.Message}");
+        }
+    }
+
+    private void LoadHistory()
+    {
+        try
+        {
+            if (File.Exists(HistoryPath))
+            {
+                var lines = File.ReadAllLines(HistoryPath, Encoding.UTF8);
+                for (int i = 1; i < lines.Length; i++)
+                {
+                    var parts = ParseCsvLine(lines[i]);
+                    if (parts.Length >= 7)
+                    {
+                        var item = new DownloadItem(parts[1], parts[2], parts[3], parts[4])
+                        {
+                            Status = parts[5],
+                            TotalBytes = long.TryParse(parts[6], out var size) ? size : 0
+                        };
+                        downloads.Add(item);
+                    }
+                }
+                RefreshVisibleDownloads();
+            }
+        }
+        catch (Exception ex)
+        {
+            Log($"Failed to load history: {ex.Message}");
+        }
+    }
+
+    private static string EscapeCsv(string value)
+    {
+        if (string.IsNullOrEmpty(value)) return "";
+        if (value.Contains(",") || value.Contains("\"") || value.Contains("\n"))
+        {
+            return "\"" + value.Replace("\"", "\"\"") + "\"";
+        }
+        return value;
+    }
+
+    private static string[] ParseCsvLine(string line)
+    {
+        var result = new System.Collections.Generic.List<string>();
+        bool inQuotes = false;
+        var current = new StringBuilder();
+        for (int i = 0; i < line.Length; i++)
+        {
+            char c = line[i];
+            if (c == '"')
+            {
+                if (inQuotes && i + 1 < line.Length && line[i + 1] == '"')
+                {
+                    current.Append('"');
+                    i++;
+                }
+                else
+                {
+                    inQuotes = !inQuotes;
+                }
+            }
+            else if (c == ',' && !inQuotes)
+            {
+                result.Add(current.ToString());
+                current.Clear();
+            }
+            else
+            {
+                current.Append(c);
+            }
+        }
+        result.Add(current.ToString());
+        return result.ToArray();
     }
 
     private string SettingsPath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TermIDM", "desktop-settings.json");
@@ -699,18 +914,27 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex) { StatusText.Text = $"Could not save settings: {ex.Message}"; }
     }
+
+    private static void Log(string message)
+    {
+        try
+        {
+            var logDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TermIDM", "logs");
+            Directory.CreateDirectory(logDir);
+            var path = Path.Combine(logDir, "trace.log");
+            File.AppendAllText(path, $"[{DateTimeOffset.Now:O}] {message}{Environment.NewLine}");
+        }
+        catch { }
+    }
 }
 
 public sealed class DownloadItem : INotifyPropertyChanged
 {
-    private string status = "Queued", details = "Waiting to start…", fileName;
+    private string status = "Queued", details = "Waiting to start\u2026", fileName;
     private double percent, speedBytesPerSecond;
     private long bytesDownloaded, totalBytes;
     private int activeConnections;
     private readonly string? categoryOverride;
-    private readonly object telemetryGate = new();
-    private string? pendingTelemetry;
-    private bool telemetryDispatchQueued;
 
     public DownloadItem(string fileName, string url, string folder, string? category = null)
     {
@@ -736,16 +960,29 @@ public sealed class DownloadItem : INotifyPropertyChanged
             return "General";
         }
     }
-    public Process? EngineProcess { get; set; }
     public long LastProgressBytes { get; set; } = -1;
     public long LastProgressTimestamp { get; set; }
-    public string SizeText => TotalBytes > 0 ? FormatBytes(TotalBytes) : "Checking…";
+    public string SizeText => TotalBytes > 0 ? FormatBytes(TotalBytes) : "Checking\u2026";
     public string ProgressText => TotalBytes > 0
-        ? $"{Percent:0.0}%  ·  ETA {EtaText}"
-        : "Connecting…";
+        ? $"{Percent:0.0}%  \u00B7  ETA {EtaText}"
+        : "Connecting\u2026";
     public string SpeedText => FormatRate(SpeedBytesPerSecond);
-    public string EtaText => SpeedBytesPerSecond > 0 && TotalBytes >= BytesDownloaded
-        ? TimeSpan.FromSeconds(Math.Clamp((TotalBytes - BytesDownloaded) / SpeedBytesPerSecond, 0, 365 * 86400)).ToString(@"h:mm:ss") : "—";
+    public string EtaText
+    {
+        get
+        {
+            if (SpeedBytesPerSecond <= 0 || TotalBytes <= 0 || TotalBytes < BytesDownloaded)
+                return "\u2014";
+            var remaining = TotalBytes - BytesDownloaded;
+            var seconds = remaining / SpeedBytesPerSecond;
+            if (seconds <= 0 || double.IsInfinity(seconds) || double.IsNaN(seconds))
+                return "\u2014";
+            var ts = TimeSpan.FromSeconds(Math.Clamp(seconds, 0, 365 * 86400));
+            if (ts.TotalHours >= 24)
+                return $"{(int)ts.TotalDays}d {ts.Hours}h {ts.Minutes}m";
+            return ts.ToString(@"h\:mm\:ss");
+        }
+    }
     public event PropertyChangedEventHandler? PropertyChanged;
     private void Changed([CallerMemberName] string? name = null) => PropertyChanged?.Invoke(this, new(name));
     public string Status
@@ -776,28 +1013,6 @@ public sealed class DownloadItem : INotifyPropertyChanged
     public int ConnectionLimit { get; set; } = 16;
     public long SpeedLimitBytesPerSecond { get; set; }
     public int NetworkTimeoutSeconds { get; set; } = 90;
-
-    public bool QueueTelemetry(string line)
-    {
-        lock (telemetryGate)
-        {
-            pendingTelemetry = line;
-            if (telemetryDispatchQueued) return false;
-            telemetryDispatchQueued = true;
-            return true;
-        }
-    }
-
-    public string? TakeTelemetry()
-    {
-        lock (telemetryGate)
-        {
-            var line = pendingTelemetry;
-            pendingTelemetry = null;
-            telemetryDispatchQueued = false;
-            return line;
-        }
-    }
 
     private static string FormatBytes(long value) => value >= 1024L * 1024 * 1024 ? $"{value / 1024d / 1024 / 1024:0.00} GiB" : value >= 1024 * 1024 ? $"{value / 1024d / 1024:0.0} MiB" : value >= 1024 ? $"{value / 1024d:0.0} KiB" : $"{value} B";
     private static string FormatRate(double value) => value >= 1024 * 1024 ? $"{value / 1024 / 1024:0.00} MiB/s" : value >= 1024 ? $"{value / 1024:0.0} KiB/s" : $"{value:0} B/s";
