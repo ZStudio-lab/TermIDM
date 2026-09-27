@@ -4,25 +4,211 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#080A0E">
-  <meta name="termidm-version" content="1.2.59">
-  <title>TermIDM — Downloads, under control</title>
-  <meta name="description" content="TermIDM is a native Windows download manager with parallel transfers, resume support, and a focused Fluent dark interface.">
+  <meta name="termidm-version" content="1.2.63">
+  <title>TermIDM — Zerith Studio</title>
+  <meta name="description" content="TermIDM is a native Windows download manager by Zerith Studio. Parallel transfers, stealth downloads, and a polished Fluent interface.">
+  <link rel="icon" href="assets/termidm.ico">
   <style>
-    :root{color-scheme:dark;--bg:#080A0E;--panel:#0F1218;--raised:#181C26;--line:#252B3A;--text:#EEF2FA;--muted:#7A8499;--blue:#3B82F6;--cyan:#06B6D4;--max:1180px;font-family:Inter,"Segoe UI Variable",Segoe UI,system-ui,sans-serif}
-    *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:radial-gradient(ellipse at 12% 0%,#0C1A2E 0,transparent 35%),var(--bg);color:var(--text);line-height:1.55}a{color:inherit}button,input{font:inherit}.shell{width:min(var(--max),calc(100% - 48px));margin:auto}.top{height:76px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #ffffff12}.brand{display:flex;align-items:center;gap:12px;text-decoration:none;font-weight:650;letter-spacing:.01em}.logo{height:38px;width:38px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(145deg,#1E40AF,#0C4A6E);border:1px solid #3B82F655;color:#93C5FD;font-size:21px;overflow:hidden}.logo img{width:27px;height:27px;object-fit:contain}.nav{display:flex;gap:25px;align-items:center}.nav a{text-decoration:none;color:var(--muted);font-size:14px}.nav a:hover{color:white}.button{border:1px solid #2563EB;border-radius:10px;background:linear-gradient(135deg,#3B82F6,#2563EB);color:white;padding:11px 17px;text-decoration:none;font-weight:650;display:inline-flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;box-shadow:0 10px 28px #3B82F62C;transition:transform .18s,filter .18s}.button:hover{filter:brightness(1.12);transform:translateY(-1px)}.button.secondary{background:#ffffff08;border-color:#ffffff1e;box-shadow:none}.hero{display:grid;grid-template-columns:1.1fr .9fr;gap:58px;align-items:center;padding:92px 0 84px}.eyebrow{color:#67E8F9;text-transform:uppercase;letter-spacing:.16em;font-size:12px;font-weight:700}.hero h1{font-size:clamp(44px,6.2vw,76px);line-height:1.02;letter-spacing:-.055em;margin:18px 0 22px;max-width:700px}.hero h1 span{background:linear-gradient(100deg,#3B82F6,#06B6D4);background-clip:text;color:transparent}.lead{font-size:18px;color:#94A3B8;max-width:610px}.actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:30px}.fine{font-size:12px;color:#64748B;margin-top:15px}.mock{padding:13px;border:1px solid #ffffff17;backdrop-filter:blur(12px);border-radius:16px;background:#0F1218cc;box-shadow:0 24px 80px #00000055}.window{border-radius:12px;overflow:hidden;border:1px solid #252B3A}.titlebar{display:flex;align-items:center;gap:10px;padding:12px 16px;background:#181C26;border-bottom:1px solid #252B3A}.dot{width:10px;height:10px;border-radius:50%;background:#3B82F6}.titlebar strong{font-size:13px}.titlebar .muted{color:#7A8499;font-size:11px}.mocktools{display:flex;gap:6px;padding:10px 16px;background:#0F1218;border-bottom:1px solid #252B3A}.tool{width:28px;height:28px;display:grid;place-items:center;border-radius:6px;background:#181C26;border:1px solid #252B3A;color:#7A8499;font-size:12px}.mockhead,.mockrow{display:grid;grid-template-columns:1.5fr 1fr 0.8fr 2fr 0.7fr;gap:12px;padding:10px 16px;font-size:11px}.mockhead{color:#4A5268;text-transform:uppercase;letter-spacing:.08em;font-weight:600;font-size:9px;border-bottom:1px solid #252B3A}.mockrow{border-bottom:1px solid #252B3A33}.mockrow:last-child{border-bottom:none}.bar{height:34px;background:#181C26;border-radius:6px;position:relative;overflow:hidden}.bar i{position:absolute;inset:0;background:linear-gradient(90deg,#3B82F6,#06B6D4);border-radius:6px}.bar b{position:absolute;inset:0;display:grid;place-items:center;font-size:10px;color:white;font-weight:600}.section{padding:80px 0}.sectionhead{text-align:center;max-width:640px;margin:0 auto 48px}.sectionhead h2{font-size:36px;margin:12px 0 16px;letter-spacing:-.03em}.sectionhead p{color:#7A8499;font-size:16px}.features{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}.card{padding:28px;border:1px solid #252B3A;border-radius:16px;background:#0F1218;transition:border-color .2s,transform .2s}.card:hover{border-color:#3B82F655;transform:translateY(-2px)}.icon{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:#181C26;border:1px solid #252B3A;font-size:20px;margin-bottom:16px}.card h3{margin:0 0 8px;font-size:17px}.card p{margin:0;color:#7A8499;font-size:14px}.license-wrap{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:start}.license-info h2{font-size:32px;margin:12px 0 16px}.steps{margin:24px 0}.step{padding:14px 0;border-bottom:1px solid #252B3A33}.step strong{display:block;margin-bottom:4px;color:#94A3B8}.privacy{font-size:12px;color:#4A5268;margin-top:16px}.license-card{padding:28px;border:1px solid #252B3A;border-radius:16px;background:#0F1218}.formgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.field{display:flex;flex-direction:column;gap:6px}.field.full{grid-column:1/-1}.field label{font-size:11px;color:#7A8499;font-weight:600;text-transform:uppercase;letter-spacing:.06em}.field input{padding:11px 14px;border-radius:8px;border:1px solid #252B3A;background:#181C26;color:var(--text);font-size:14px;outline:none;transition:border-color .15s}.field input:focus{border-color:#3B82F6}.status{font-size:13px;color:#67E8F9;min-height:20px;margin-top:12px}.keyout{display:none;margin-top:20px;padding:16px;border:1px solid #252B3A;border-radius:12px;background:#0F1218}.keyout.show{display:block}.keyout strong{font-size:12px;color:#7A8499;text-transform:uppercase;letter-spacing:.06em}.keytext{font:12px/1.6 Consolas,monospace;overflow-wrap:anywhere;word-break:break-all;color:#A7F3D0;max-height:180px;overflow:auto;padding:12px;background:#0A0F0A;border-radius:8px;margin:10px 0}.footer{display:flex;justify-content:space-between;padding:28px 0;border-top:1px solid #252B3A33;color:#4A5268;font-size:13px}.footer a{color:#7A8499;text-decoration:none}.footer a:hover{color:var(--text)}
-    @media(max-width:900px){.hero{grid-template-columns:1fr;padding:60px 0}.features{grid-template-columns:1fr}.license-wrap{grid-template-columns:1fr}.formgrid{grid-template-columns:1fr}.nav{gap:16px}.nav a:nth-child(2){display:none}}
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+    :root{color-scheme:dark;--bg:#080A0E;--panel:#0F1218;--raised:#181C26;--line:#252B3A;--text:#EEF2FA;--muted:#7A8499;--blue:#3B82F6;--cyan:#06B6D4;--green:#10B981;--amber:#F59E0B;--red:#EF4444;--max:1200px;font-family:Inter,"Segoe UI Variable",Segoe UI,system-ui,sans-serif}
+    *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:radial-gradient(ellipse at 12% 0%,#0C1A2E 0,transparent 35%),var(--bg);color:var(--text);line-height:1.55}
+    a{color:inherit}button,input{font:inherit}
+    .shell{width:min(var(--max),calc(100% - 48px));margin:auto}
+    .top{height:72px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #ffffff12}
+    .brand{display:flex;align-items:center;gap:12px;text-decoration:none;font-weight:700;letter-spacing:.01em;font-size:16px}
+    .logo{height:36px;width:36px;border-radius:10px;display:grid;place-items:center;background:linear-gradient(145deg,#1E40AF,#0C4A6E);border:1px solid #3B82F655;color:#93C5FD;font-size:18px;overflow:hidden}
+    .logo img{width:24px;height:24px;object-fit:contain}
+    .nav{display:flex;gap:24px;align-items:center}
+    .nav a{text-decoration:none;color:var(--muted);font-size:13px;font-weight:500;transition:color .15s}
+    .nav a:hover{color:white}
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 18px;border-radius:10px;font-weight:600;font-size:14px;text-decoration:none;cursor:pointer;transition:transform .18s,filter .18s;border:1px solid transparent}
+    .btn:hover{transform:translateY(-1px);filter:brightness(1.1)}
+    .btn-primary{background:linear-gradient(135deg,#3B82F6,#2563EB);color:white;border-color:#2563EB;box-shadow:0 8px 24px #3B82F62C}
+    .btn-secondary{background:#ffffff08;border-color:#ffffff1e;color:var(--text)}
+    .btn-success{background:linear-gradient(135deg,#10B981,#059669);color:white;border-color:#059669;box-shadow:0 8px 24px #10B9812C}
+    .hero{display:grid;grid-template-columns:1.1fr .9fr;gap:56px;align-items:center;padding:80px 0 72px}
+    .eyebrow{color:#67E8F9;text-transform:uppercase;letter-spacing:.14em;font-size:11px;font-weight:700}
+    .hero h1{font-size:clamp(40px,5.6vw,68px);line-height:1.04;letter-spacing:-.05em;margin:16px 0 20px;max-width:680px}
+    .hero h1 span{background:linear-gradient(100deg,#3B82F6,#06B6D4);background-clip:text;color:transparent}
+    .lead{font-size:17px;color:#94A3B8;max-width:580px;margin-bottom:28px}
+    .actions{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+    .fine{font-size:12px;color:#64748B}
+    .badges{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+    .badge{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;background:#181C26;border:1px solid #252B3A;font-size:11px;color:#7A8499;font-weight:500}
+    .badge .dot{width:6px;height:6px;border-radius:50%}
+    .mock{padding:14px;border:1px solid #ffffff17;backdrop-filter:blur(12px);border-radius:16px;background:#0F1218cc;box-shadow:0 24px 80px #00000055}
+    .window{border-radius:12px;overflow:hidden;border:1px solid #252B3A}
+    .titlebar{display:flex;align-items:center;gap:10px;padding:12px 16px;background:#181C26;border-bottom:1px solid #252B3A}
+    .titlebar .dot{width:10px;height:10px;border-radius:50%;background:#3B82F6}
+    .titlebar strong{font-size:13px}
+    .titlebar .muted{color:#7A8499;font-size:11px}
+    .mocktools{display:flex;gap:6px;padding:10px 16px;background:#0F1218;border-bottom:1px solid #252B3A}
+    .tool{width:28px;height:28px;display:grid;place-items:center;border-radius:6px;background:#181C26;border:1px solid #252B3A;color:#7A8499;font-size:12px}
+    .mockhead,.mockrow{display:grid;grid-template-columns:1.5fr 1fr 0.8fr 2fr 0.7fr;gap:12px;padding:10px 16px;font-size:11px}
+    .mockhead{color:#4A5268;text-transform:uppercase;letter-spacing:.08em;font-weight:600;font-size:9px;border-bottom:1px solid #252B3A}
+    .mockrow{border-bottom:1px solid #252B3A33}
+    .mockrow:last-child{border-bottom:none}
+    .bar{height:34px;background:#181C26;border-radius:6px;position:relative;overflow:hidden}
+    .bar i{position:absolute;inset:0;background:linear-gradient(90deg,#3B82F6,#06B6D4);border-radius:6px}
+    .bar b{position:absolute;inset:0;display:grid;place-items:center;font-size:10px;color:white;font-weight:600}
+    .section{padding:72px 0}
+    .sectionhead{text-align:center;max-width:640px;margin:0 auto 44px}
+    .sectionhead h2{font-size:32px;margin:12px 0 14px;letter-spacing:-.03em}
+    .sectionhead p{color:#7A8499;font-size:15px}
+    .features{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+    .card{padding:26px;border:1px solid #252B3A;border-radius:14px;background:#0F1218;transition:border-color .2s,transform .2s}
+    .card:hover{border-color:#3B82F655;transform:translateY(-2px)}
+    .icon{width:42px;height:42px;border-radius:11px;display:grid;place-items:center;background:#181C26;border:1px solid #252B3A;font-size:18px;margin-bottom:14px}
+    .card h3{margin:0 0 8px;font-size:16px}
+    .card p{margin:0;color:#7A8499;font-size:13px}
+    .legal-wrap{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:start}
+    .legal-info h2{font-size:28px;margin:12px 0 14px}
+    .legal-info p{color:#7A8499;font-size:14px}
+    .legal-card{padding:26px;border:1px solid #252B3A;border-radius:14px;background:#0F1218}
+    .legal-card h3{margin:0 0 12px;font-size:16px}
+    .legal-card ul{margin:0;padding-left:20px;color:#7A8499;font-size:13px}
+    .legal-card li{margin-bottom:8px}
+    .legal-card .highlight{color:#F59E0B;font-weight:600}
+    .legal-card .free{color:#10B981;font-weight:600}
+    .patchnotes{padding:26px;border:1px solid #252B3A;border-radius:14px;background:#0F1218}
+    .patchnotes h3{margin:0 0 16px;font-size:16px}
+    .patchnote{display:flex;gap:12px;padding:12px 0;border-bottom:1px solid #252B3A33}
+    .patchnote:last-child{border-bottom:none}
+    .patchnote .version{font-weight:700;color:#3B82F6;font-size:13px;min-width:60px}
+    .patchnote .desc{color:#7A8499;font-size:13px}
+    .footer{display:flex;justify-content:space-between;align-items:center;padding:24px 0;border-top:1px solid #252B3A33;color:#4A5268;font-size:12px;flex-wrap:wrap;gap:12px}
+    .footer a{color:#7A8499;text-decoration:none}
+    .footer a:hover{color:var(--text)}
+    .footer .credits{display:flex;gap:16px;flex-wrap:wrap}
+    @media(max-width:900px){.hero{grid-template-columns:1fr;padding:48px 0}.features{grid-template-columns:1fr}.legal-wrap{grid-template-columns:1fr}.nav{gap:14px}.nav a:nth-child(2){display:none}}
   </style>
 </head>
 <body>
-  <header class="shell top"><a class="brand" href="#top"><span class="logo"><img src="assets/termidm.ico" alt=""></span><span>TermIDM</span></a><nav class="nav"><a href="#features">Features</a><a href="#license">License</a><a href="https://github.com/zstudio-lab/TermIDM">Source</a><a class="button" href="https://github.com/zstudio-lab/TermIDM/releases/latest/download/TermIDM-Setup-v1.2.59-Windows-x64.exe">Download</a></nav></header>
+  <header class="shell top">
+    <a class="brand" href="#top"><span class="logo"><img src="assets/termidm.ico" alt=""></span><span>TermIDM</span></a>
+    <span style="font-size:11px;color:#7A8499;font-weight:500;letter-spacing:.04em">Designed and Published by <strong style="color:#EEF2FA">Arka Nandy (Zerith Studio)</strong></span>
+    <nav class="nav">
+      <a href="#features">Features</a>
+      <a href="#download">Download</a>
+      <a href="#legal">Legal</a>
+      <a href="#changelog">Changelog</a>
+      <a href="https://github.com/zstudio-lab/TermIDM">Source</a>
+    </nav>
+  </header>
+
   <main id="top">
-    <section class="shell hero"><div><span class="eyebrow">A focused download manager for Windows</span><h1>Downloads,<br><span>under control.</span></h1><p class="lead">Parallel transfers, reliable resume, and live speed telemetry in a native desktop experience inspired by the tools power users trust.</p><div class="actions"><a class="button" href="https://github.com/zstudio-lab/TermIDM/releases/latest/download/TermIDM-Windows-x64.zip">↓ &nbsp; Download Now</a><a class="button secondary" href="https://github.com/zstudio-lab/TermIDM">View source</a></div><p class="fine">Windows 10 and 11 · x64 · Version <span id="version">1.2.59</span></p></div>
-      <div class="mock" aria-label="TermIDM download manager interface preview"><div class="window"><div class="titlebar"><span class="dot"></span><strong>TermIDM</strong><span class="muted">· Downloads</span></div><div class="mocktools"><span class="tool">＋</span><span class="tool">▶</span><span class="tool">Ⅱ</span><span class="tool">■</span><span class="tool">⚙</span></div><div class="mockhead"><span>Filename</span><span>Status</span><span>Size</span><span>Progress</span><span>ETA</span></div><div class="mockrow"><span>Windows11_25H2.iso</span><span>Downloading</span><span>8.4 GB</span><div class="bar"><i style="width:76%"></i><b>76% · 12.4 MiB/s</b></div><span>00:42</span></div><div class="mockrow"><span>TermIDM_Setup.zip</span><span>Downloading</span><span>148 MB</span><div class="bar"><i style="width:48%"></i><b>48% · 5.1 MiB/s</b></div><span>00:18</span></div><div class="mockrow"><span>Project_Archive.zip</span><span>Completed</span><span>2.1 GB</span><div class="bar"><i style="width:100%"></i><b>Complete</b></div><span>—</span></div></div></div>
+    <section class="shell hero">
+      <div>
+        <span class="eyebrow">Zerith Studio Presents</span>
+        <h1>Downloads,<br><span>under control.</span></h1>
+        <p class="lead">A native Windows download manager with parallel segmented transfers, stealth browser headers, and a polished Fluent dark interface. Built for power users who demand speed and reliability.</p>
+        <div class="actions" id="download">
+          <a class="btn btn-primary" href="https://github.com/ZStudio-lab/TermIDM/releases/download/v1.2.63/TermIDM-Setup-v1.2.63-Windows-x64.exe">&#8681; &nbsp; Download Installer</a>
+          <a class="btn btn-success" href="https://github.com/ZStudio-lab/TermIDM/releases/download/v1.2.63/TermIDM-Windows-x64.zip">&#8681; &nbsp; Download Portable</a>
+        </div>
+        <p class="fine">Windows 10 and 11 &middot; x64 &middot; Version <span id="version">1.2.63</span> &middot; Free for Personal Use</p>
+        <div class="badges">
+          <span class="badge"><span class="dot" style="background:#10B981"></span>Free for Personal Use</span>
+          <span class="badge"><span class="dot" style="background:#3B82F6"></span>Native C++ Engine</span>
+          <span class="badge"><span class="dot" style="background:#06B6D4"></span>WinUI 3</span>
+          <span class="badge"><span class="dot" style="background:#F59E0B"></span>Stealth Mode</span>
+        </div>
+      </div>
+      <div class="mock" aria-label="TermIDM interface preview">
+        <div class="window">
+          <div class="titlebar"><span class="dot"></span><strong>TermIDM</strong><span class="muted">&middot; Downloads</span></div>
+          <div class="mocktools"><span class="tool">&#8853;</span><span class="tool">&#9654;</span><span class="tool">&#10074;&#10074;</span><span class="tool">&#9632;</span><span class="tool">&#9881;</span></div>
+          <div class="mockhead"><span>Filename</span><span>Status</span><span>Size</span><span>Progress</span><span>ETA</span></div>
+          <div class="mockrow"><span>Windows11_25H2.iso</span><span>Downloading</span><span>8.4 GB</span><div class="bar"><i style="width:76%"></i><b>76% &middot; 12.4 MiB/s</b></div><span>00:42</span></div>
+          <div class="mockrow"><span>TermIDM_Setup.zip</span><span>Downloading</span><span>148 MB</span><div class="bar"><i style="width:48%"></i><b>48% &middot; 5.1 MiB/s</b></div><span>00:18</span></div>
+          <div class="mockrow"><span>Project_Archive.zip</span><span>Completed</span><span>2.1 GB</span><div class="bar"><i style="width:100%"></i><b>Complete</b></div><span>&mdash;</span></div>
+        </div>
+      </div>
     </section>
-    <section class="section" id="features"><div class="shell"><div class="sectionhead"><span class="eyebrow">Built for the way files move</span><h2>More control from first byte to finish.</h2><p>TermIDM combines a modern Windows interface with a native transfer engine and clear, useful download telemetry.</p></div><div class="features"><article class="card"><div class="icon">↗</div><h3>Parallel transfers</h3><p>Split range-capable downloads across configurable connections and make better use of available bandwidth.</p></article><article class="card"><div class="icon">⟳</div><h3>Recover and resume</h3><p>Pause, resume, and recover interrupted downloads when the server supports byte ranges.</p></article><article class="card"><div class="icon">⌁</div><h3>Live telemetry</h3><p>See per-download progress, transfer rate, estimated time, and active connection state at a glance.</p></article><article class="card"><div class="icon">⬇</div><h3>Stealth downloads</h3><p>Browser-like headers and automatic retry with exponential backoff for reliable transfers.</p></article><article class="card"><div class="icon">📁</div><h3>Smart filenames</h3><p>Automatically detects filenames from server Content-Disposition headers for accurate file naming.</p></article><article class="card"><div class="icon">📊</div><h3>Download history</h3><p>Persistent CSV download history with timestamps, sizes, and status tracking across sessions.</p></article></div></div></section>
-    <section class="section" id="about"><div class="shell"><div class="sectionhead"><span class="eyebrow">About TermIDM</span><h2>Built for Windows power users.</h2><p>TermIDM is a native Windows download manager built with WinUI 3 and a C++ transfer engine. It features parallel segmented downloads, stealth browser headers, automatic retry, and a polished dark Fluent interface.</p></div><div class="features"><article class="card"><div class="icon">⚡</div><h3>Native Performance</h3><p>C++17 engine with libcurl delivers fast, reliable HTTP/HTTPS transfers with range request support.</p></article><article class="card"><div class="icon">🛡</div><h3>Stealth Mode</h3><p>Browser-like headers and automatic retry with exponential backoff for reliable downloads.</p></article><article class="card"><div class="icon">🎨</div><h3>Fluent Design</h3><p>Modern WinUI 3 interface with Mica backdrop, dark theme, and smooth animations.</p></article></div></div></section>
+
+    <section class="section" id="features">
+      <div class="shell">
+        <div class="sectionhead">
+          <span class="eyebrow">Built for the way files move</span>
+          <h2>More control from first byte to finish.</h2>
+          <p>TermIDM combines a modern Windows interface with a native transfer engine and clear, useful download telemetry.</p>
+        </div>
+        <div class="features">
+          <article class="card"><div class="icon">&#8599;</div><h3>Parallel Transfers</h3><p>Split range-capable downloads across configurable connections for maximum bandwidth utilization.</p></article>
+          <article class="card"><div class="icon">&#10227;</div><h3>Recover and Resume</h3><p>Pause, resume, and recover interrupted downloads when the server supports byte ranges.</p></article>
+          <article class="card"><div class="icon">&#9889;</div><h3>Live Telemetry</h3><p>Real-time progress, transfer rate, estimated time, and active connection state at a glance.</p></article>
+          <article class="card"><div class="icon">&#128737;</div><h3>Stealth Downloads</h3><p>Browser-like headers and automatic retry with exponential backoff for reliable transfers.</p></article>
+          <article class="card"><div class="icon">&#128193;</div><h3>Smart Filenames</h3><p>Automatically detects filenames from server Content-Disposition headers for accurate file naming.</p></article>
+          <article class="card"><div class="icon">&#128202;</div><h3>Download History</h3><p>Persistent CSV download history with timestamps, sizes, and status tracking across sessions.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="legal">
+      <div class="shell">
+        <div class="sectionhead">
+          <span class="eyebrow">Legal &amp; Licensing</span>
+          <h2>Zerith Studio Distribution Terms</h2>
+          <p>TermIDM is legally released by Zerith Studio. Please review the terms below.</p>
+        </div>
+        <div class="legal-wrap">
+          <div class="legal-card">
+            <h3>&#9878; License Terms</h3>
+            <ul>
+              <li><span class="free">Free for Personal Use</span> — Individuals may use TermIDM at no cost for personal, non-commercial purposes.</li>
+              <li><span class="highlight">Enterprise Use</span> — Organizations must obtain written permission from Zerith Studio before deployment.</li>
+              <li><span class="highlight">Redistribution</span> — Third-party distribution requires explicit authorization from the developer or Anonymous Zerith.</li>
+              <li>Modification of the source code for redistribution is prohibited without consent.</li>
+              <li>Zerith Studio retains all intellectual property rights to the software.</li>
+            </ul>
+          </div>
+          <div class="legal-card">
+            <h3>&#128220; Legal Notes</h3>
+            <ul>
+              <li>TermIDM is provided "as is" without warranty of any kind.</li>
+              <li>Zerith Studio is not liable for any damages arising from the use of this software.</li>
+              <li>Users are responsible for ensuring their use of TermIDM complies with local laws and regulations.</li>
+              <li>The developer reserves the right to update these terms at any time.</li>
+              <li>By using TermIDM, you agree to these terms and conditions.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="changelog">
+      <div class="shell">
+        <div class="sectionhead">
+          <span class="eyebrow">Patch Notes</span>
+          <h2>Version History</h2>
+          <p>Track changes, improvements, and fixes across releases.</p>
+        </div>
+        <div class="patchnotes">
+          <div class="patchnote"><span class="version">v1.2.62</span><span class="desc">Added designer credits, fixed UI freezing, throttled progress callbacks</span></div>
+          <div class="patchnote"><span class="version">v1.2.61</span><span class="desc">Added About section credits, fixed FontStyles namespace issue</span></div>
+          <div class="patchnote"><span class="version">v1.2.60</span><span class="desc">Added footer credits, fixed deploy script git handling</span></div>
+          <div class="patchnote"><span class="version">v1.2.59</span><span class="desc">Throttled progress callbacks, safe TimeSpan formatting, Unicode escapes</span></div>
+          <div class="patchnote"><span class="version">v1.2.58</span><span class="desc">Fixed Clear List button, progress display, server-side filename detection</span></div>
+          <div class="patchnote"><span class="version">v1.2.57</span><span class="desc">Improved UI design, settings with 4 working tabs, About section</span></div>
+          <div class="patchnote"><span class="version">v1.2.54</span><span class="desc">Merged engine + UI into single executable, P/Invoke bridge</span></div>
+          <div class="patchnote"><span class="version">v1.2.48</span><span class="desc">Initial release with WinUI 3 and C++ download engine</span></div>
+        </div>
+      </div>
+    </section>
   </main>
-  <footer class="shell footer"><span>© <span id="year"></span> zstudio-lab · TermIDM</span><span><a href="https://github.com/zstudio-lab/TermIDM">Source code</a> · <a href="https://github.com/zstudio-lab/TermIDM/releases/latest">Releases</a></span></footer>
+
+  <footer class="shell footer">
+    <div class="credits">
+      <span>&copy; <span id="year"></span> ZStudio-lab &middot; TermIDM</span>
+      <span>Designed by <strong>Zerith Studio</strong> by <strong>Arka Nandy</strong> and Published by <strong>ZStudio-lab</strong></span>
+    </div>
+    <div class="credits">
+      <span>Powered by <a href="https://opencode.ai" target="_blank" rel="noopener">OpenCode</a></span>
+      <a href="https://github.com/zstudio-lab/TermIDM">Source code</a>
+      <a href="https://github.com/zstudio-lab/TermIDM/releases/latest">Releases</a>
+    </div>
+  </footer>
+
   <script>
     const version = document.querySelector('meta[name="termidm-version"]')?.content || '1.0.0';
     document.getElementById('version').textContent = version;
