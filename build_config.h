@@ -1,3 +1,3 @@
 #pragma once
 
-#define TERMIDM_VERSION "1.2.59"
+#define TERMIDM_VERSION "1.2.62"

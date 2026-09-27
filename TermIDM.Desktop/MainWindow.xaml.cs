@@ -642,6 +642,7 @@ public sealed partial class MainWindow : Window
         aboutPanel.Children.Add(new TextBlock { Text = $"Version: {Assembly.GetExecutingAssembly().GetName().Version}", Foreground = new SolidColorBrush(Microsoft.UI.Colors.Gray), FontSize = 12 });
         aboutPanel.Children.Add(new TextBlock { Text = "Integrated native download engine", Foreground = new SolidColorBrush(Microsoft.UI.Colors.Gray), FontSize = 12 });
         aboutPanel.Children.Add(new TextBlock { Text = "Built with WinUI 3 and libcurl", Foreground = new SolidColorBrush(Microsoft.UI.Colors.Gray), FontSize = 12 });
+        aboutPanel.Children.Add(new TextBlock { Text = "Designed by Zerith Studio by Arka Nandy and Published by ZStudio-lab", Foreground = new SolidColorBrush(Microsoft.UI.Colors.Gray), FontSize = 11 });
         aboutPanel.Children.Add(new TextBlock { Text = "", Foreground = new SolidColorBrush(Microsoft.UI.Colors.Gray), FontSize = 8 });
         aboutPanel.Children.Add(new TextBlock { Text = "Engine Features:", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Microsoft.UI.Colors.White), FontSize = 12 });
         aboutPanel.Children.Add(new TextBlock { Text = "- HTTP/HTTPS with range request support", Foreground = new SolidColorBrush(Microsoft.UI.Colors.Gray), FontSize = 11 });
